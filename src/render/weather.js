@@ -11,8 +11,23 @@ export class Weather {
     this.bolt = null;
     this.boltX = 600;
     this.intensity = 1;
-    this.drops = Array.from({ length: 170 }, () => this.newDrop(true));
+    this.gust = 0; // 0..1, set by the game from nearby wind zones (signed by gustDir)
+    this.gustDir = 1;
+    this.drops = Array.from({ length: kind === 'snow' ? 220 : 170 }, () => (kind === 'snow' ? this.newFlake(true) : this.newDrop(true)));
     this.onThunder = null;
+  }
+
+  newFlake(anywhere = false) {
+    const depth = Math.random();
+    return {
+      x: rand(-120, VIEW_W + 120),
+      y: anywhere ? rand(-20, VIEW_H) : rand(-40, -5),
+      v: 30 + depth * 70,
+      r: 0.6 + depth * 2.2,
+      a: 0.35 + depth * 0.5,
+      ph: rand(0, 6.28),
+      depth,
+    };
   }
 
   newDrop(anywhere = false) {
@@ -43,6 +58,22 @@ export class Weather {
 
   update(dt) {
     if (!this.kind) return;
+    if (this.kind === 'snow') {
+      const drift = 20 + this.gust * this.gustDir * 600;
+      for (const f of this.drops) {
+        f.ph += dt * (1 + f.depth);
+        f.y += f.v * dt * (1 + this.gust * 0.5);
+        f.x += (drift * (0.4 + f.depth) + Math.sin(f.ph) * 14) * dt;
+        if (f.y > VIEW_H + 10 || f.x < -140 || f.x > VIEW_W + 140) {
+          Object.assign(f, this.newFlake());
+          if (this.gust > 0.3) {
+            f.x = this.gustDir > 0 ? rand(-140, -10) : rand(VIEW_W + 10, VIEW_W + 140);
+            f.y = rand(0, VIEW_H);
+          }
+        }
+      }
+      return;
+    }
     this.flash = Math.max(0, this.flash - dt * 2.2);
     // double-flicker
     if (this.flash > 0 && this.flash < 0.55 && this.flicker === undefined) {
@@ -65,6 +96,32 @@ export class Weather {
 
   draw(ctx) {
     if (!this.kind) return;
+    if (this.kind === 'snow') {
+      ctx.save();
+      const streak = this.gust * this.gustDir * 26;
+      for (const f of this.drops) {
+        ctx.fillStyle = `rgba(235,242,255,${f.a})`;
+        if (Math.abs(streak) > 3) {
+          ctx.strokeStyle = `rgba(235,242,255,${f.a * 0.8})`;
+          ctx.lineWidth = f.r;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(f.x, f.y);
+          ctx.lineTo(f.x - streak * (0.4 + f.depth), f.y - 2);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      if (this.gust > 0.2) {
+        ctx.fillStyle = `rgba(220,230,250,${this.gust * 0.12})`;
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      }
+      ctx.restore();
+      return;
+    }
     ctx.save();
     ctx.lineCap = 'round';
     const slant = 0.17 * this.intensity;

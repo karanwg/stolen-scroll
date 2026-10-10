@@ -37,6 +37,20 @@ export const DEFAULT_TUNING = {
   dashCooldown: 0.32,
   dashFreeze: 0.035,
 
+  // Shadow dash: every so often a dash turns you to smoke — untouchable for its length
+  shadowDashCooldown: 3.0,
+  // Sprint: keep holding dash after the burst to keep running
+  sprintSpeed: 370,
+
+  // Kaginawa (grappling hook)
+  hookRange: 340,
+  hookRopeSpeed: 2600,
+  hookPump: 950,
+  hookReel: 240,
+  hookMinLen: 56,
+  hookMaxLen: 340,
+  hookJumpMult: 0.8,
+
   // Float (cloth parachute)
   floatFallSpeed: 90,
   floatRunSpeed: 230,

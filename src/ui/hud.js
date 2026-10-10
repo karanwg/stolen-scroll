@@ -1,4 +1,4 @@
-import { VIEW_W, VIEW_H } from '../config.js';
+import { VIEW_W, VIEW_H, TUNING as T } from '../config.js';
 import { clamp, easeOutCubic } from '../core/math.js';
 import { drawAbilityIcon, ABILITY_INFO } from './icons.js';
 import { ABILITIES } from '../entities/player.js';
@@ -126,6 +126,22 @@ export class Hud {
       ctx.lineWidth = 1;
       ctx.stroke();
       drawAbilityIcon(ctx, ab, ax + 6, y0 + 42, 15, ABILITY_INFO[ab].color);
+      if (ab === 'dash' && p.abilities.shadowStep) {
+        // the shadow dash: a violet ring when it's ready, a sweep while it recharges
+        const k = clamp(1 - p.shadowCool / T.shadowDashCooldown, 0, 1);
+        ctx.lineWidth = 2;
+        if (k >= 1) {
+          ctx.strokeStyle = `rgba(170,130,255,${0.55 + 0.25 * Math.sin(game.time * 4)})`;
+          ctx.beginPath();
+          ctx.arc(ax + 6, y0 + 42, 13.5, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = 'rgba(170,130,255,0.45)';
+          ctx.beginPath();
+          ctx.arc(ax + 6, y0 + 42, 13.5, -Math.PI / 2, -Math.PI / 2 + k * Math.PI * 2);
+          ctx.stroke();
+        }
+      }
       ax += 30;
     }
 

@@ -7,14 +7,20 @@ import { THEMES } from './themes.js';
 //   G  sealed gate (solid until opened)
 //   ~  calm water (drowns you — unless you wear the Mizugumo and keep moving)
 //   %  rough water (whitecaps, storm surge: drowns you, can't be walked on)
-export const SOLID = new Set(['#', 'w', 'X', 'G']);
+//   I  ice (solid; slippery underfoot, slick to wall-slide)
+//   v  ice spikes (hazard; pogo-able)
+//   a  acid (hazard)
+//   R  hive resin (solid; dash breaks it)
+//   M  ship's steel plating (solid)     D  cargo bay door (solid until it blows)
+//   S  sliding door leaf (solid while shut; the Door entity draws it)
+export const SOLID = new Set(['#', 'w', 'X', 'G', 'I', 'R', 'M', 'D', 'S']);
 
 export const CHUNK = 16;
 
 export const isWater = (t) => t === '~' || t === '%'; // tiles per render chunk edge
 
 export class Level {
-  constructor({ grid, entities = [], decos = [], zones = [], tracks = [], hints = [], camBounds = null, name = '', theme = THEMES.fire, chapter = 1 }) {
+  constructor({ grid, entities = [], decos = [], zones = [], tracks = [], hints = [], camBounds = null, name = '', theme = THEMES.fire, chapter = 1, themeZones = null }) {
     this.grid = grid;
     this.h = grid.length;
     this.w = grid[0].length;
@@ -29,8 +35,20 @@ export class Level {
     this.name = name;
     this.theme = theme;
     this.chapter = chapter;
+    // [{ x0 (tile), theme }] sorted by x0 — a chapter can change look partway through.
+    this.themeZones = themeZones || [{ x0: 0, theme }];
     this.chunkVersion = new Map();
     this.platforms = []; // moving one-way platforms (FloatPlatform), owned by the game
+  }
+
+  themeAtTile(tx) {
+    let t = this.themeZones[0].theme;
+    for (const z of this.themeZones) if (tx >= z.x0) t = z.theme;
+    return t;
+  }
+
+  themeAt(px) {
+    return this.themeAtTile(Math.floor(px / TILE));
   }
 
   tileAt(tx, ty) {
@@ -113,10 +131,11 @@ export class Level {
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
         const t = this.tileAt(tx, ty);
-        if (t === '^') {
+        if (t === '^' || t === 'v' || t === 'a') {
           const hx = tx * TILE + 3;
           const hy = ty * TILE + 12;
-          if (x < hx + TILE - 6 && x + w > hx && y < hy + TILE - 12 && y + h > hy) return [tx, ty, 'fire'];
+          const kind = t === '^' ? 'fire' : t === 'v' ? 'spikes' : 'acid';
+          if (x < hx + TILE - 6 && x + w > hx && y < hy + TILE - 12 && y + h > hy) return [tx, ty, kind];
         } else if (t === '~' || t === '%') {
           const surface = this.waterSurfaceAt(tx, ty);
           if (y + h > surface + 18) return [tx, ty, 'water'];
@@ -168,13 +187,14 @@ export class Level {
     return null;
   }
 
-  // Breaks every connected barricade tile; returns the tiles broken.
+  // Breaks every connected barricade (or resin) tile; returns the tiles broken.
   breakCluster(tx, ty) {
+    const kind = this.tileAt(tx, ty);
     const out = [];
     const stack = [[tx, ty]];
     while (stack.length) {
       const [x, y] = stack.pop();
-      if (this.tileAt(x, y) !== 'X') continue;
+      if (this.tileAt(x, y) !== kind) continue;
       this.setTile(x, y, '.');
       out.push([x, y]);
       stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);

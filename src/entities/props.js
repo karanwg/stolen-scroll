@@ -154,13 +154,14 @@ export class Elder {
 }
 
 export class Note {
-  constructor(cx, floorY, id) {
-    Object.assign(this, { kind: 'note', id, x: cx - 22, y: floorY - 60, w: 44, h: 60, cx, floorY, read: false });
+  constructor(cx, floorY, id, look = null) {
+    Object.assign(this, { kind: 'note', id, look, x: cx - 22, y: floorY - 60, w: 44, h: 60, cx, floorY, read: false });
     this.prompt = 'Read';
   }
   update() {}
   draw(ctx, game) {
     const { cx, floorY } = this;
+    if (this.look === 'terminal') return this.drawTerminal(ctx, game);
     if (this.id === 'tracks') {
       // a broken signpost with a scrap tied to it
       ctx.fillStyle = '#2a1a12';
@@ -189,8 +190,24 @@ export class Note {
     ctx.restore();
     if (!this.read) glow(ctx, cx, floorY - 34, 26, 'rgb(255,220,160)', 0.25 + Math.sin(game.time * 3) * 0.1);
   }
+  // A ship's terminal: a green screen still scrolling someone's last words.
+  drawTerminal(ctx, game) {
+    const { cx, floorY } = this;
+    const t = game.time;
+    ctx.fillStyle = '#2a3038';
+    ctx.fillRect(cx - 4, floorY - 30, 8, 30);
+    ctx.fillStyle = '#1a1e23';
+    ctx.fillRect(cx - 20, floorY - 62, 40, 32);
+    ctx.fillStyle = '#04100a';
+    ctx.fillRect(cx - 16, floorY - 58, 32, 22);
+    ctx.fillStyle = 'rgba(120,255,140,0.85)';
+    for (let i = 0; i < 4; i++) ctx.fillRect(cx - 13, floorY - 55 + i * 5, 6 + ((i * 7 + Math.floor(t * 2)) % 18), 1.6);
+    if (Math.sin(t * 5) > 0) ctx.fillRect(cx - 13 + 20, floorY - 40, 4, 2);
+    if (!this.read) glow(ctx, cx, floorY - 47, 30, 'rgb(120,255,140)', 0.25 + Math.sin(t * 3) * 0.08);
+  }
   light(out) {
-    out.push({ x: this.cx, y: this.floorY - 30, r: 60, color: 'rgb(255,210,150)', i: 0.3 });
+    if (this.look === 'terminal') out.push({ x: this.cx, y: this.floorY - 47, r: 80, color: 'rgb(120,255,150)', i: 0.45 });
+    else out.push({ x: this.cx, y: this.floorY - 30, r: 60, color: 'rgb(255,210,150)', i: 0.3 });
   }
 }
 
@@ -348,9 +365,9 @@ export class WoundedBinoshi {
 
 // The silver relic the Kraken leaves behind. Examining it ends the chapter.
 export class Relic {
-  constructor(cx, floorY) {
-    Object.assign(this, { kind: 'relic', x: cx - 20, y: floorY - 50, w: 40, h: 50, cx, floorY, visible: false });
-    this.prompt = 'Examine';
+  constructor(cx, floorY, look = 'plate') {
+    Object.assign(this, { kind: 'relic', x: cx - 20, y: floorY - 50, w: 40, h: 50, cx, floorY, visible: false, look });
+    this.prompt = look === 'page' ? 'Read' : 'Examine';
   }
   update(dt, game) {
     if (!this.visible) return;
@@ -361,6 +378,24 @@ export class Relic {
     const t = game.time;
     const cx = this.cx;
     const y = this.floorY - 14 + Math.sin(t * 1.5) * 1;
+    if (this.look === 'page') {
+      // a single torn scroll page weighted under a stone, its ink glowing violet
+      glow(ctx, cx, this.floorY - 10, 60, 'rgb(170,100,255)', 0.5 + Math.sin(t * 2) * 0.1);
+      ctx.fillStyle = '#d9cfa8';
+      ctx.beginPath();
+      ctx.moveTo(cx - 16, this.floorY - 2);
+      ctx.lineTo(cx + 14, this.floorY - 4);
+      ctx.lineTo(cx + 12, this.floorY - 16);
+      ctx.lineTo(cx - 14, this.floorY - 14);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(150,80,255,0.9)';
+      for (let i = 0; i < 4; i++) ctx.fillRect(cx - 9 + i * 6, this.floorY - 13, 2, 8);
+      ctx.fillStyle = '#4a4650';
+      ctx.beginPath();
+      ctx.ellipse(cx + 4, this.floorY - 15, 7, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
     glow(ctx, cx, y - 6, 70, 'rgb(150,220,255)', 0.5 + Math.sin(t * 3) * 0.1);
     // curved plate of seamless silver, half buried
     const g = ctx.createLinearGradient(cx - 18, y - 20, cx + 18, y + 6);
@@ -389,5 +424,125 @@ export class Relic {
   }
   light(out) {
     if (this.visible) out.push({ x: this.cx, y: this.floorY - 20, r: 160, color: 'rgb(150,220,255)', i: 0.8 });
+  }
+}
+
+// The old monk of the onsen, up to his shoulders in hot water with a towel on his head.
+export class Monk {
+  constructor(cx, floorY) {
+    Object.assign(this, { kind: 'npc', id: 'monk', x: cx - 24, y: floorY - 50, w: 48, h: 50, cx, floorY, talked: false });
+    this.prompt = 'Talk';
+  }
+  update() {}
+  draw(ctx, game) {
+    const { cx, floorY } = this;
+    const t = game.time;
+    const breathe = Math.sin(t * 1.1) * 0.8;
+    // a wooden tub, steaming
+    ctx.fillStyle = '#3a2a1e';
+    ctx.fillRect(cx - 22, floorY - 26, 44, 26);
+    ctx.fillStyle = '#2a1e14';
+    for (const y of [-22, -10]) ctx.fillRect(cx - 23, floorY + y, 46, 3);
+    ctx.fillStyle = 'rgba(150,200,200,0.8)';
+    ctx.fillRect(cx - 19, floorY - 26, 38, 4);
+    // shoulders + shaved head
+    ctx.fillStyle = '#c69a78';
+    ctx.beginPath();
+    ctx.ellipse(cx, floorY - 26 + breathe, 13, 6, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + 1, floorY - 38 + breathe, 8, 0, Math.PI * 2);
+    ctx.fill();
+    // towel folded on the head
+    ctx.fillStyle = '#ece4d4';
+    ctx.fillRect(cx - 6, floorY - 48 + breathe, 13, 4);
+    // closed, contented eyes and long white brows
+    ctx.strokeStyle = '#3a2418';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(cx - 3, floorY - 38 + breathe);
+    ctx.lineTo(cx, floorY - 37.5 + breathe);
+    ctx.moveTo(cx + 3, floorY - 38 + breathe);
+    ctx.lineTo(cx + 6, floorY - 37.5 + breathe);
+    ctx.stroke();
+    ctx.fillStyle = '#f0ece4';
+    ctx.fillRect(cx - 5, floorY - 41 + breathe, 5, 1.6);
+    ctx.fillRect(cx + 3, floorY - 41 + breathe, 5, 1.6);
+    for (let i = 0; i < 3; i++) {
+      const k = (t * 0.3 + i * 0.33) % 1;
+      ctx.fillStyle = `rgba(230,235,245,${0.25 * (1 - k)})`;
+      ctx.beginPath();
+      ctx.arc(cx - 12 + i * 12 + Math.sin(k * 6) * 3, floorY - 30 - k * 50, 4 + k * 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  light(out) {
+    out.push({ x: this.cx, y: this.floorY - 30, r: 80, color: 'rgb(255,200,150)', i: 0.4 });
+  }
+}
+
+// A Binoshi sealed into the wall. Still breathing.
+export class CocoonNPC {
+  constructor(cx, floorY) {
+    Object.assign(this, { kind: 'npc', id: 'cocooned', x: cx - 24, y: floorY - 90, w: 48, h: 90, cx, floorY, talked: false });
+    this.prompt = 'Listen';
+  }
+  update() {}
+  draw(ctx, game) {
+    const { cx, floorY } = this;
+    const t = game.time;
+    const heave = this.burst ? 0 : Math.sin(t * 2.4) * 1.2;
+    ctx.fillStyle = '#121a18';
+    ctx.beginPath();
+    ctx.ellipse(cx, floorY - 46, 24 + heave * 0.4, 48, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#25332f';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 7; i++) {
+      ctx.beginPath();
+      ctx.moveTo(cx - 24 + i * 8, floorY - 92);
+      ctx.quadraticCurveTo(cx - 10 + i * 4, floorY - 46, cx - 22 + i * 8, floorY);
+      ctx.stroke();
+    }
+    // the face: mask torn, eyes wet and open
+    ctx.fillStyle = '#2a2230';
+    ctx.beginPath();
+    ctx.ellipse(cx, floorY - 70, 9, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#a07a6a';
+    ctx.fillRect(cx - 6, floorY - 72, 12, 5);
+    ctx.fillStyle = '#f0e8e0';
+    ctx.fillRect(cx - 4, floorY - 71, 2, 2);
+    ctx.fillRect(cx + 2, floorY - 71, 2, 2);
+    if (this.burst) {
+      // the chest opened from inside; the head has fallen forward
+      ctx.fillStyle = '#1a0608';
+      ctx.beginPath();
+      ctx.ellipse(cx, floorY - 44, 9, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#c9b8a8';
+      ctx.lineWidth = 1.5;
+      for (let k = -2; k <= 2; k++) {
+        ctx.beginPath();
+        ctx.moveTo(cx + k * 3, floorY - 48);
+        ctx.lineTo(cx + k * 6, floorY - 60);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(100,8,16,0.75)';
+      ctx.beginPath();
+      ctx.ellipse(cx, floorY - 2, 30, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(cx - 3, floorY - 40, 6, 38);
+      return;
+    }
+    // something moving under the resin, low on the chest
+    const k = (Math.sin(t * 0.9) + 1) / 2;
+    ctx.fillStyle = 'rgba(30,44,40,0.9)';
+    ctx.beginPath();
+    ctx.ellipse(cx + (k - 0.5) * 8, floorY - 44, 6 + k * 3, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  light(out) {
+    out.push({ x: this.cx, y: this.floorY - 60, r: 70, color: 'rgb(150,120,200)', i: 0.3 });
   }
 }

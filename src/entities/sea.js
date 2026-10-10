@@ -206,8 +206,8 @@ export class FloatPlatform {
 // A blowhole in the sea. Bubbles, then erupts: anything in the column is
 // thrown upward. With the Kite Cloth open you ride the updraft.
 export class Geyser {
-  constructor(cx, surfaceY, { period = 3.4, offset = 0, height = 340 } = {}) {
-    Object.assign(this, { cx, y: surfaceY, period, height, t: offset, w: 54 });
+  constructor(cx, surfaceY, { period = 3.4, offset = 0, height = 340, look = 'water' } = {}) {
+    Object.assign(this, { cx, y: surfaceY, period, height, t: offset, w: 54, look });
     this.state = 'idle';
   }
   get erupting() {
@@ -218,9 +218,12 @@ export class Geyser {
     const ph = this.t % this.period;
     const prev = this.state;
     this.state = ph < this.period - 2.0 ? 'idle' : ph < this.period - 1.2 ? 'warn' : 'erupt';
-    if (this.state === 'erupt' && prev !== 'erupt') game.audio.play('geyser');
+    // only heard when you're near it
+    if (this.state === 'erupt' && prev !== 'erupt' && Math.hypot(game.player.cx - this.cx, game.player.cy - this.y) < 700) game.audio.play('geyser');
     if (this.state === 'warn' && Math.random() < 0.5) game.particles.add({ x: this.cx + rand(-18, 18), y: this.y - 2, vx: 0, vy: rand(-60, -20), size: rand(2, 4), kind: 'ring', grow: 10, color: 'rgba(200,235,255,0.6)', life: 0.4 });
-    if (this.state === 'erupt') {
+    if (this.state === 'erupt' && this.look === 'steam') {
+      for (let i = 0; i < 3; i++) game.particles.add({ x: this.cx + rand(-14, 14), y: this.y - rand(0, 40), vx: rand(-20, 20), vy: rand(-420, -260), kind: 'smoke', size: rand(6, 12), grow: 30, color: 'rgba(235,240,248,0.35)', life: 1.1, drag: 0.6 });
+    } else if (this.state === 'erupt') {
       for (let i = 0; i < 3; i++) game.particles.add({ x: this.cx + rand(-16, 16), y: this.y - rand(0, this.height * 0.8), vx: rand(-40, 40), vy: rand(-500, -300), size: rand(2, 4), color: 'rgba(210,235,255,0.7)', life: 0.5, grav: 600 });
       const p = game.player;
       if (Math.abs(p.cx - this.cx) < this.w / 2 + 6 && p.feetY > this.y - this.height && p.y < this.y + 10 && p.state === 'normal') {
@@ -248,6 +251,20 @@ export class Geyser {
     const ph = (this.t % this.period) - (this.period - 1.2);
     const k = Math.min(1, ph / 0.15) * Math.min(1, (1.2 - ph) / 0.25);
     const h = this.height * k;
+    if (this.look === 'steam') {
+      // a soft roaring column of steam
+      const g = ctx.createLinearGradient(0, this.y - h, 0, this.y);
+      g.addColorStop(0, 'rgba(235,240,250,0)');
+      g.addColorStop(1, 'rgba(235,240,250,0.45)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(this.cx - 16, this.y);
+      ctx.quadraticCurveTo(this.cx - 40, this.y - h * 0.6, this.cx - 30 + Math.sin(game.time * 3) * 8, this.y - h);
+      ctx.lineTo(this.cx + 30 + Math.sin(game.time * 2.6) * 8, this.y - h);
+      ctx.quadraticCurveTo(this.cx + 40, this.y - h * 0.6, this.cx + 16, this.y);
+      ctx.fill();
+      return;
+    }
     const grad = ctx.createLinearGradient(0, this.y - h, 0, this.y);
     grad.addColorStop(0, 'rgba(220,240,255,0.15)');
     grad.addColorStop(0.3, 'rgba(190,225,250,0.55)');

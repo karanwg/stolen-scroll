@@ -10,8 +10,14 @@ export const ABILITY_INFO = {
   dash: {
     name: 'Wind-Step Tabi',
     verb: 'Dash',
-    how: 'Press C / K / Shift. Dashing shatters burning barricades.',
+    how: 'Press C to burst forward — on the ground or in the air.',
     color: '#8fffd8',
+  },
+  shadowStep: {
+    name: 'Kage-ashi',
+    verb: 'Shadow Dash · Sprint',
+    how: 'Every 3s a dash turns to shadow: untouchable. Hold C after it to sprint.',
+    color: '#b89aff',
   },
   waterWalk: {
     name: 'Mizugumo',
@@ -26,10 +32,16 @@ export const ABILITY_INFO = {
     color: '#ff9fb0',
   },
   wallJump: {
-    name: 'Iron Claws',
+    name: 'Shuko Claws',
     verb: 'Wall Jump',
-    how: 'Hold toward a wall to cling, then JUMP away from it.',
+    how: 'Hold toward a wall to cling, then JUMP away from it. Ice walls are slick.',
     color: '#ffd28f',
+  },
+  kaginawa: {
+    name: 'Kaginawa',
+    verb: 'Grappling Hook',
+    how: 'Hold S to hook the marked ring and swing. ← → pump · ↑ ↓ reel · let go to fling · Z to leap off.',
+    color: '#ffcf8a',
   },
 };
 
@@ -78,6 +90,24 @@ export function drawAbilityIcon(ctx, ability, x, y, s, color = '#ffffff') {
       }
       break;
     }
+    case 'shadowStep': {
+      // a runner's shadow with its afterimages trailing
+      for (let i = 0; i < 3; i++) {
+        ctx.globalAlpha = 0.3 + i * 0.35;
+        ctx.beginPath();
+        ctx.arc(-8 + i * 7, -5, 3.2, 0, Math.PI * 2);
+        ctx.moveTo(-8 + i * 7, -1);
+        ctx.lineTo(-11 + i * 7, 10);
+        ctx.moveTo(-8 + i * 7, 3);
+        ctx.lineTo(-3 + i * 7, 9);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, -0.6, 0.6);
+      ctx.stroke();
+      break;
+    }
     case 'waterWalk': {
       // mizugumo: a ring of floats around a sandal, ripples beneath
       ctx.beginPath();
@@ -113,6 +143,30 @@ export function drawAbilityIcon(ctx, ability, x, y, s, color = '#ffffff') {
       ctx.beginPath();
       ctx.arc(0, 12, 2.5, 0, Math.PI * 2);
       ctx.fill();
+      break;
+    }
+    case 'kaginawa': {
+      // three-pronged hook trailing a coil of rope
+      ctx.beginPath();
+      ctx.moveTo(6, -12);
+      ctx.lineTo(6, 2);
+      ctx.stroke();
+      for (const s of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(6, -10);
+        ctx.quadraticCurveTo(6 + s * 9, -10, 6 + s * 8, -2);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(6, -14);
+      ctx.lineTo(6, -18);
+      ctx.stroke();
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(6, 2);
+      ctx.bezierCurveTo(-4, 6, -14, 0, -10, 8);
+      ctx.bezierCurveTo(-6, 14, 4, 10, -2, 14);
+      ctx.stroke();
       break;
     }
     case 'wallJump': {

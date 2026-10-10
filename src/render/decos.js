@@ -2,6 +2,10 @@ import { TILE } from '../config.js';
 import { mulberry32 } from '../core/math.js';
 import { roofPath, makeCanvas, drawFire, drawFlame, glow } from './shapes.js';
 import { SEA_PAINTERS } from './decosSea.js';
+import { SNOW_PAINTERS } from './decosSnow.js';
+import { ALIEN_PAINTERS } from './decosAlien.js';
+import { CRATER_PAINTERS } from './decosCrater.js';
+import { SHIP_PAINTERS } from './decosShip.js';
 
 // Background props painted once into sprites. Each prop can also declare
 // fires (animated every frame) and lights (fed to the lighting pass).
@@ -440,7 +444,7 @@ const PAINTERS = {
   },
 };
 
-Object.assign(PAINTERS, SEA_PAINTERS);
+Object.assign(PAINTERS, SEA_PAINTERS, SNOW_PAINTERS, ALIEN_PAINTERS, CRATER_PAINTERS, SHIP_PAINTERS);
 
 function tileLines(g, x, eaveY, w, rise) {
   // fire-lit rim along the roof outline
@@ -475,10 +479,15 @@ export class DecoLayer {
     this.fires = [];
     this.lights = [];
     this.beams = [];
+    this.steam = [];
+    this.lamps = []; // bright bits that glow through the dark (tubes, screens, beacons)
+    this.windows = []; // lit openings in the back wall that something can pass behind
+    this.shafts = []; // beams of light falling from above
+    this.blackout = []; // [{x0, x1, t}] — lights in this span are dead for t seconds
     for (const d of level.decos) {
       const painter = PAINTERS[d.type];
       if (!painter) continue;
-      const out = { fires: [], lights: [], beams: [] };
+      const out = { fires: [], lights: [], beams: [], steam: [], lamps: [], windows: [], shafts: [] };
       // dry run to learn bounds + fires (cheap: draws into a 1x1 canvas)
       const probe = makeCanvas(1, 1).getContext('2d');
       const b = painter(probe, d, out);
@@ -487,6 +496,10 @@ export class DecoLayer {
       for (const f of out.fires) this.fires.push({ ...f, x: d.x + f.x, y: d.y + f.y, seed: Math.random() * 100 });
       for (const l of out.lights) this.lights.push({ ...l, x: d.x + l.x, y: d.y + l.y });
       for (const b of out.beams) this.beams.push({ ...b, x: d.x + b.x, y: d.y + b.y });
+      for (const st of out.steam) this.steam.push({ ...st, x: d.x + st.x, y: d.y + st.y });
+      for (const l of out.lamps) this.lamps.push({ ...l, x: d.x + l.x, y: d.y + l.y });
+      for (const w of out.windows) this.windows.push({ ...w, x: d.x + w.x, y: d.y + w.y });
+      for (const sh of out.shafts) this.shafts.push({ ...sh, x: d.x + sh.x, y: d.y + sh.y });
     }
     // Tile-based fires: burning debris and barricades.
     this.level = level;
@@ -499,7 +512,7 @@ export class DecoLayer {
     const g = c.getContext('2d');
     g.scale(this.scale, this.scale);
     g.translate(-b.x0, -b.y0);
-    painter(g, d, { fires: [], lights: [], beams: [] });
+    painter(g, d, { fires: [], lights: [], beams: [], steam: [], lamps: [], windows: [], shafts: [] });
     item.sprite = c;
     return c;
   }
@@ -563,7 +576,20 @@ export class DecoLayer {
       for (let tx = tx0; tx <= tx1; tx++) {
         const t2 = L.grid[ty][tx];
         if (t2 === '^') drawFire(ctx, tx * TILE + 16, ty * TILE + 24, 30, 40, t, tx * 7.3 + ty);
-        else if (t2 === 'X') {
+        else if (t2 === 'a' && L.tileAt(tx, ty - 1) !== 'a') {
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          for (let k = 0; k < 2; k++) {
+            const ph = (t * (0.8 + k * 0.3) + tx * 0.37 + k * 0.5) % 1;
+            const bx = tx * TILE + 6 + ((tx * 13 + k * 11) % 20);
+            const by = ty * TILE + 13 - ph * 10;
+            ctx.fillStyle = `rgba(170,255,110,${0.6 * (1 - ph)})`;
+            ctx.beginPath();
+            ctx.arc(bx, by, 1.5 + ph * 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        } else if (t2 === 'X') {
           if (L.tileAt(tx, ty - 1) !== 'X') drawFire(ctx, tx * TILE + 16, ty * TILE + 12, 34, 56, t, tx * 3.1 + ty * 5);
           else if ((tx + ty) % 2 === 0) drawFlame(ctx, tx * TILE + 10 + (ty % 3) * 5, ty * TILE + 22, 14, 18, t, tx * 7 + ty, 0.7);
         }
@@ -571,11 +597,104 @@ export class DecoLayer {
     }
   }
 
+  // Distance (px) from a point to the nearest flame: deco fires and burning tiles.
+  nearestFire(x, y) {
+    let best = Infinity;
+    for (const f of this.fires) {
+      const d = Math.hypot(f.x - x, f.y - f.h * 0.4 - y);
+      if (d < best) best = d;
+    }
+    const L = this.level;
+    const tx0 = Math.max(0, Math.floor(x / TILE) - 22);
+    const tx1 = Math.min(L.w - 1, Math.floor(x / TILE) + 22);
+    const ty0 = Math.max(0, Math.floor(y / TILE) - 14);
+    const ty1 = Math.min(L.h - 1, Math.floor(y / TILE) + 14);
+    for (let ty = ty0; ty <= ty1; ty++) {
+      for (let tx = tx0; tx <= tx1; tx++) {
+        const t = L.grid[ty][tx];
+        if (t !== '^' && t !== 'X') continue;
+        const d = Math.hypot(tx * TILE + 16 - x, ty * TILE + 16 - y);
+        if (d < best) best = d;
+      }
+    }
+    return best;
+  }
+
+  // Lit window interiors: drawn behind the decos, so bars and frames sit in front.
+  drawWindows(ctx, view, t, state = {}) {
+    for (const w of this.windows) {
+      if (w.x + w.w < view.x0 || w.x > view.x1 || w.y + w.h < view.y0 || w.y > view.y1) continue;
+      const g = ctx.createLinearGradient(0, w.y, 0, w.y + w.h);
+      const red = state.powerOut;
+      g.addColorStop(0, red ? '#3a0c0a' : '#2a3a44');
+      g.addColorStop(1, red ? '#120404' : '#0e1418');
+      ctx.fillStyle = g;
+      ctx.fillRect(w.x, w.y, w.w, w.h);
+      // machinery silhouettes in the bay beyond
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(w.x + w.w * 0.1, w.y + w.h * 0.55, w.w * 0.25, w.h * 0.45);
+      ctx.fillRect(w.x + w.w * 0.6, w.y + w.h * 0.4, w.w * 0.3, w.h * 0.6);
+    }
+  }
+
+  // Glowing fixtures, drawn after the lighting so they punch through the dark.
+  drawLamps(ctx, view, t, state = {}) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const l of this.lamps) {
+      if (l.x < view.x0 - 80 || l.x > view.x1 + 80 || l.y < view.y0 - 80 || l.y > view.y1 + 80) continue;
+      let k = lampLevel(l, t, state);
+      if (k <= 0) continue;
+      if (l.flicker) k *= Math.sin(t * 0.9 + l.x * 0.01) > 0.93 ? 0.15 : 0.85 + 0.15 * Math.sin(t * 31 + l.x);
+      ctx.globalAlpha = k;
+      if (l.w) {
+        ctx.fillStyle = l.color;
+        ctx.fillRect(l.x, l.y, l.w, l.h);
+        glow(ctx, l.x + l.w / 2, l.y + l.h / 2, Math.max(l.w, 20) * 0.7, l.color.replace(/rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)/, 'rgb($1,$2,$3)'), 0.35);
+      } else {
+        glow(ctx, l.x, l.y, l.r * 5, l.color, 0.6);
+        ctx.fillStyle = l.color;
+        ctx.beginPath();
+        ctx.arc(l.x, l.y, l.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    // shafts of light from above, slowly breathing
+    for (const sh of this.shafts) {
+      if (sh.x + sh.w < view.x0 - 200 || sh.x > view.x1 + 200) continue;
+      const a = 0.12 + 0.03 * Math.sin(t * 0.6 + sh.x);
+      const g = ctx.createLinearGradient(0, sh.y, 0, sh.y + sh.h);
+      g.addColorStop(0, `rgba(140,180,255,${a})`);
+      g.addColorStop(1, 'rgba(140,180,255,0)');
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(sh.x + sh.w * 0.3, sh.y);
+      ctx.lineTo(sh.x + sh.w * 0.7, sh.y);
+      ctx.lineTo(sh.x + sh.w * 1.1, sh.y + sh.h);
+      ctx.lineTo(sh.x - sh.w * 0.1, sh.y + sh.h);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
   // Lights for the lighting pass (world space).
-  collectLights(view, out, t) {
+  collectLights(view, out, t, state = {}) {
     for (const l of this.lights) {
       if (l.x + l.r < view.x0 || l.x - l.r > view.x1 || l.y + l.r < view.y0 || l.y - l.r > view.y1) continue;
-      out.push(l);
+      if (this.blackout.some((b) => l.x >= b.x0 && l.x <= b.x1)) continue;
+      const k = lampLevel(l, t, state);
+      if (k <= 0) continue;
+      if (k < 1) {
+        out.push({ ...l, i: l.i * k });
+        continue;
+      }
+      if (l.flicker) {
+        // sick, irregular flicker — occasionally dropping out entirely
+        const n = Math.sin(t * 17 + l.x) * Math.sin(t * 7.3 + l.y * 0.1);
+        const out2 = Math.sin(t * 0.9 + l.x * 0.01) > 0.93 ? 0.1 : 1;
+        out.push({ ...l, i: l.i * (0.75 + 0.25 * n) * out2 });
+      } else out.push(l);
     }
     const L = this.level;
     const tx0 = Math.max(0, Math.floor(view.x0 / TILE) - 4);
@@ -587,8 +706,22 @@ export class DecoLayer {
         const t2 = L.grid[ty][tx];
         if ((t2 === '^' && tx % 2 === 0) || t2 === 'X') {
           out.push({ x: tx * TILE + 16, y: ty * TILE + 8, r: 150, color: 'rgb(255,120,40)', i: 0.75 + Math.sin(t * 9 + tx) * 0.08 });
+        } else if (t2 === 'a' && tx % 2 === 0 && L.tileAt(tx, ty - 1) !== 'a') {
+          out.push({ x: tx * TILE + 16, y: ty * TILE + 10, r: 120, color: 'rgb(130,255,90)', i: 0.6 + Math.sin(t * 3 + tx) * 0.1 });
         }
       }
     }
   }
+}
+
+// 0..1: how lit a light or lamp is right now (power state, blinking, strobing).
+function lampLevel(l, t, state) {
+  if (l.power === 'main' && state.powerOut) return 0;
+  if (l.power === 'emergency' && !state.powerOut) return 0;
+  if (l.blink) return Math.sin(((t / l.blink + (l.phase || 0)) % 1) * Math.PI * 2) > 0.3 ? 1 : 0;
+  if (l.strobe) {
+    const u = (t * 0.75 + l.x * 0.0007) % 1;
+    return u < 0.18 ? 1 : 0.12;
+  }
+  return 1;
 }

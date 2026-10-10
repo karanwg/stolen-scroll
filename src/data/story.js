@@ -18,6 +18,31 @@ export const ELDER = [
 export const ELDER_AFTER = [{ who: 'Elder Haru', text: 'The tracks lead through the village. Go, child.' }];
 
 export const NOTES = {
+  journal: [
+    { who: "The Master's journal", text: 'The third name is in no tongue of this world. The Scroll shows it only beneath the star\'s light.' },
+    { who: "The Master's journal", text: 'We found where the star came down. The snow there has turned to glass, and in the glass there is a door. Tonight I read the name to whatever sleeps behind it.' },
+    { who: "The Master's journal", text: '(The last line shakes across the page.) The men will not stop screaming. I go on alone, to the fourth gate.' },
+  ],
+  bells: [
+    { who: 'Temple notice', text: 'Three bells guard the inner hall: the bell of the gate, the bell of the cliff, the bell of the sky.' },
+    { who: 'Temple notice', text: 'Strike all three, and the claws of the old masters are yours to bear. They will hold you to stone — and to ice.' },
+  ],
+  haiku: [{ who: 'Carved into the rail', text: 'Snow on the hot spring — / the old monkey shuts his eyes / and forgets the star.' }],
+  patrol: [
+    { who: 'A Binoshi diary', text: 'Second night on the slope. The snow hisses where the star cut through it. Kenta says it was a ship. Kenta says a lot of things.' },
+    { who: 'A Binoshi diary', text: 'Something small ran across the snow tonight. Fast. Too many legs. Hiro went after it with a lantern.' },
+    { who: 'A Binoshi diary', text: 'We found Hiro at dawn. He was smiling. Then he wasn\'t. His chest opened from the inside, and whatever it was went into the dark faster than we could follow.' },
+  ],
+  podlog: [
+    { who: 'A screen in the lifeboat', text: 'MSV TETHYS · LIFEBOAT 2 · FLIGHT LOG. Launched 02:14. Hull breach, decks C through F. Specimen loose. Comms dead.' },
+    { who: 'A screen in the lifeboat', text: 'Autopilot fault. Impact imminent. To whoever finds this: do not go into the Tethys. Do not take anything out of it.' },
+    { who: '', text: 'The words mean nothing to you. The fear in them does.' },
+  ],
+  log1: [
+    { who: "Captain's log · entry 41", text: 'We answered the other ship\'s beacon. It wasn\'t a distress call. It was a warning. It took us too long to work that out.' },
+    { who: "Captain's log · entry 42", text: 'Ostrowski went inside it. Came back with something wrapped around his face. The company wants it brought home alive. I want it off my ship.' },
+    { who: "Captain's log · entry 44", text: 'It\'s in the vents. Bigger every day. If we can drive it into the cargo bay, we can blow the outer door and let the drop take it.' },
+  ],
   orders: [
     { who: 'Binoshi orders', text: 'Second name: the Beast of the Deep. Read it at the Floating Shrine when the tide is high.' },
     { who: 'Binoshi orders', text: 'Take every boat in Ama. Leave none to follow us. If the beast is hungry, let it eat the village first. — The Master' },
@@ -100,4 +125,46 @@ export const NPCS = {
   elder: { first: 'ELDER', after: 'ELDER_AFTER', auto: true },
   ferryman: { first: 'FERRYMAN', after: 'FERRYMAN_AFTER', auto: true, gives: 'waterWalk' },
   binoshi: { first: 'WOUNDED', after: 'WOUNDED_AFTER', auto: true },
+  monk: { first: 'MONK', after: 'MONK_AFTER', auto: true },
+  cocooned: { first: 'COCOONED', after: 'COCOONED_AFTER', auto: true },
+};
+
+// ── Chapter III — The Fallen Star ───────────────────────────
+export const OPENING_3 = [
+  'The line of light pointed east, into the mountains.',
+  'Last winter, the villages said, a star fell there — and the snow around it never stopped glowing.',
+  'The Binoshi climbed toward it. Few of them came back down.',
+];
+
+export const MONK = [
+  { who: 'Old Monk', text: 'Oh! A living face. Sit, sit — the water is warm, and the monkeys don\'t mind company.' },
+  { who: 'Old Monk', text: 'The star? It fell into the crater past the frozen falls. I went to see it. It is no star, child. Stars do not have doors.' },
+  { who: 'Old Monk', text: 'Something came out of it. Something that takes people… into the walls. The Binoshi went in after it with their scroll. I heard them for three nights.' },
+  { who: 'Old Monk', text: 'If you must go: climb the falls. The old masters\' claws will hold you to the ice. And keep your lantern close. It hates the light. A little.' },
+];
+export const MONK_AFTER = [{ who: 'Old Monk', text: 'Keep your lantern close.' }];
+
+export const COCOONED = [
+  { who: '…', text: '…you… you\'re not one of them… please…' },
+  { who: 'Cocooned Binoshi', text: 'It takes us into the walls. The Master read the name in here and the whole ship OPENED. He didn\'t stay. The fourth gate, he said. The last name opens the sky.' },
+  { who: 'Cocooned Binoshi', text: 'It\'s in the cargo bay. It\'s always in the cargo bay. Don\'t — there\'s something — something moving in my —' },
+];
+export const COCOONED_AFTER = [{ who: '', text: 'There is nothing left to say.' }];
+
+export const BOSS_DEFEATED_3 = [
+  { who: '', text: 'It claws at the deck, at the door, at you — and the night takes it. Its scream goes down and down into the crater, and stops.' },
+  { who: '', text: 'The Tethys groans and settles. Through the open bay door, along the crater\'s rim, a trail of violet footprints leads away into the snow.' },
+];
+
+export const LAST_PAGE = [
+  { who: '', text: 'A page torn from the Scroll, weighted under a stone. The Master meant for you to find it.' },
+  { who: '', text: 'Four names. Three are struck through: the Balrog. The Beast of the Deep. The Thing from the Star. The fourth is not a name at all. It is a door.' },
+  { who: '', text: 'Beneath, in the Master\'s hand: "There is a world beneath this one, where everything is turned upside down. The Mind Flayer waits there. I will let it in."' },
+  { who: '', text: 'Above the ridge, for one heartbeat, the whole sky turns red.' },
+];
+
+export const CHAPTER_END_3 = {
+  title: 'Chapter III Complete',
+  sub: 'The Fallen Star',
+  next: 'Next — The Upside Down',
 };

@@ -4,14 +4,19 @@ import { FONT_TITLE, FONT_BODY } from './hud.js';
 import { drawAbilityIcon, ABILITY_INFO } from './icons.js';
 import { glow } from '../render/shapes.js';
 
+// [label, keys, ability needed (rows stay hidden until it's learned)]
 export const CONTROLS = [
-  ['Move', '← →   or   A D'],
+  ['Move', '← →'],
   ['Jump', 'Z  or  Space   (hold for height)'],
   ['Slash', 'X  or  J   (hold ↑ / ↓ to aim)'],
-  ['Dash', 'C  ·  K  ·  Shift'],
-  ['Interact', '↑  or  W'],
+  ['Dash', 'C', 'dash'],
+  ['Shadow dash', 'every 3s a dash makes you untouchable', 'shadowStep'],
+  ['Sprint', 'keep holding C after a dash', 'shadowStep'],
+  ['Interact', '↑'],
   ['Drop through', '↓ + Jump on a beam'],
-  ['Float', 'hold Jump in midair (once learned)'],
+  ['Float', 'hold Jump in midair', 'float'],
+  ['Wall jump', 'hold toward a wall, then Jump', 'wallJump'],
+  ['Grapple', 'hold S near a ring', 'kaginawa'],
   ['Pause · Mute', 'Esc  ·  M'],
 ];
 
@@ -22,6 +27,18 @@ export class Menu {
     while (this.items[this.i] && this.items[this.i].enabled === false) this.i++;
   }
   update(input, audio) {
+    // the mouse: hovering picks an item, clicking chooses it
+    this.hover = this.itemAt(input.mouse);
+    if (input.mouseMoved && this.hover >= 0 && this.hover !== this.i) {
+      this.i = this.hover;
+      audio.play('ui');
+    }
+    if (input.clicked && this.hover >= 0) {
+      this.i = this.hover;
+      audio.play('uiSelect');
+      this.items[this.i].action();
+      return;
+    }
     const move = (d) => {
       let j = this.i;
       do j = (j + d + this.items.length) % this.items.length;
@@ -36,17 +53,29 @@ export class Menu {
       this.items[this.i].action();
     }
   }
+  // Which enabled item is under the pointer (from where it was last drawn), or -1.
+  itemAt(m) {
+    if (!m || !this.rects) return -1;
+    return this.rects.findIndex((r, k) => r && this.items[k].enabled !== false && m.x >= r.x0 && m.x <= r.x1 && m.y >= r.y0 && m.y <= r.y1);
+  }
+
   draw(ctx, cx, y, t) {
     ctx.textAlign = 'center';
+    this.rects = [];
     this.items.forEach((it, k) => {
       const sel = k === this.i;
+      ctx.font = `600 20px ${FONT_TITLE}`;
+      const half = Math.max(110, (ctx.measureText(it.label.toUpperCase()).width + it.label.length * 3) / 2 + 30);
+      this.rects[k] = { x0: cx - half, x1: cx + half, y0: y + k * 40 - 26, y1: y + k * 40 + 12 };
       ctx.font = `${sel ? 600 : 400} 20px ${FONT_TITLE}`;
       ctx.letterSpacing = '3px';
       ctx.fillStyle = it.enabled === false ? 'rgba(240,225,205,0.25)' : sel ? '#fff1dc' : 'rgba(240,225,205,0.6)';
       ctx.fillText(it.label.toUpperCase(), cx, y + k * 40);
       ctx.letterSpacing = '0px';
       if (sel) {
-        const w = ctx.measureText(it.label.toUpperCase()).width / 2 + 28 + Math.sin(t * 4) * 3;
+        // measured without the letter spacing the text is drawn with, so add it back
+        const label = it.label.toUpperCase();
+        const w = (ctx.measureText(label).width + label.length * 3) / 2 + 22 + Math.sin(t * 4) * 3;
         ctx.fillStyle = '#e0354b';
         for (const s of [-1, 1]) {
           ctx.save();
@@ -61,7 +90,7 @@ export class Menu {
   }
 }
 
-export function drawTitle(ctx, t, menu, showControls, subtitle = 'Chapter I — Kagari Village', accent = 'rgb(255,90,40)') {
+export function drawTitle(ctx, t, menu, showControls, subtitle = 'Chapter I — Kagari Village', accent = 'rgb(255,90,40)', abilities = {}) {
   const a = clamp(t / 2, 0, 1);
   ctx.fillStyle = `rgba(6,3,8,${0.55 - a * 0.15})`;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
@@ -73,6 +102,17 @@ export function drawTitle(ctx, t, menu, showControls, subtitle = 'Chapter I — 
 
   ctx.globalAlpha = a;
   ctx.textAlign = 'center';
+  // The controls list gets the whole screen — it grows as you learn things.
+  if (showControls) {
+    ctx.font = `600 36px ${FONT_TITLE}`;
+    ctx.letterSpacing = '8px';
+    ctx.fillStyle = '#f4e8d6';
+    ctx.fillText('CONTROLS', VIEW_W / 2, 140);
+    ctx.letterSpacing = '0px';
+    drawControls(ctx, 200, abilities);
+    ctx.globalAlpha = 1;
+    return;
+  }
   glow(ctx, VIEW_W / 2, 150, 260, accent, 0.25);
   ctx.font = `30px "Shippori Mincho", serif`;
   ctx.fillStyle = 'rgba(224,53,75,0.85)';
@@ -95,8 +135,7 @@ export function drawTitle(ctx, t, menu, showControls, subtitle = 'Chapter I — 
   ctx.fillStyle = 'rgba(244,232,214,0.75)';
   ctx.fillText(subtitle, VIEW_W / 2, 290);
 
-  if (showControls) drawControls(ctx, 330);
-  else menu.draw(ctx, VIEW_W / 2, menu.items.length > 3 ? 336 : 350, t);
+  menu.draw(ctx, VIEW_W / 2, menu.items.length > 3 ? 336 : 350, t);
 
   ctx.textAlign = 'center';
   ctx.font = `14px ${FONT_BODY}`;
@@ -106,9 +145,10 @@ export function drawTitle(ctx, t, menu, showControls, subtitle = 'Chapter I — 
   ctx.globalAlpha = 1;
 }
 
-export function drawControls(ctx, y) {
+export function drawControls(ctx, y, abilities = {}) {
+  const rows = CONTROLS.filter(([, , needs]) => !needs || abilities[needs]);
   ctx.textAlign = 'center';
-  CONTROLS.forEach(([k, v], i) => {
+  rows.forEach(([k, v], i) => {
     ctx.font = `600 14px ${FONT_TITLE}`;
     ctx.fillStyle = '#e8b86a';
     ctx.textAlign = 'right';
@@ -121,7 +161,7 @@ export function drawControls(ctx, y) {
   ctx.textAlign = 'center';
   ctx.font = `italic 15px ${FONT_BODY}`;
   ctx.fillStyle = 'rgba(244,232,214,0.5)';
-  ctx.fillText('press any key to go back', VIEW_W / 2, y + CONTROLS.length * 26 + 14);
+  ctx.fillText('press any key to go back', VIEW_W / 2, y + rows.length * 26 + 14);
   ctx.textAlign = 'left';
 }
 
@@ -156,7 +196,7 @@ export function drawOpening(ctx, lines, t, chapterTitle = null) {
   ctx.textAlign = 'left';
 }
 
-export function drawPause(ctx, menu, t, showControls) {
+export function drawPause(ctx, menu, t, showControls, abilities = {}) {
   ctx.fillStyle = 'rgba(5,3,8,0.72)';
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   ctx.textAlign = 'center';
@@ -165,7 +205,7 @@ export function drawPause(ctx, menu, t, showControls) {
   ctx.fillStyle = '#f4e8d6';
   ctx.fillText('PAUSED', VIEW_W / 2, 140);
   ctx.letterSpacing = '0px';
-  if (showControls) drawControls(ctx, 200);
+  if (showControls) drawControls(ctx, 200, abilities);
   else menu.draw(ctx, VIEW_W / 2, 220, t);
   ctx.textAlign = 'left';
 }

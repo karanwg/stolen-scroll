@@ -1,14 +1,15 @@
-// Keyboard input with per-step edge detection.
+// Keyboard (and, for menus, mouse) input with per-step edge detection.
 // `pressed` edges survive until the first fixed update step consumes them.
 
 const BINDINGS = {
-  left: ['ArrowLeft', 'KeyA'],
-  right: ['ArrowRight', 'KeyD'],
-  up: ['ArrowUp', 'KeyW'],
-  down: ['ArrowDown', 'KeyS'],
+  left: ['ArrowLeft'],
+  right: ['ArrowRight'],
+  up: ['ArrowUp'],
+  down: ['ArrowDown'],
   jump: ['KeyZ', 'Space'],
   attack: ['KeyX', 'KeyJ'],
   dash: ['KeyC', 'KeyK', 'ShiftLeft', 'ShiftRight'],
+  hook: ['KeyS'],
   confirm: ['Enter', 'NumpadEnter'],
   pause: ['Escape', 'KeyP'],
   mute: ['KeyM'],
@@ -27,6 +28,9 @@ export class Input {
     this.releasedSet = new Set();
     this.anyPressed = false;
     this.listeners = [];
+    this.mouse = null; // pointer in view coordinates, once it has moved over the canvas
+    this.mouseMoved = false;
+    this.clicked = false;
 
     addEventListener('keydown', (e) => {
       const actions = CODE_TO_ACTIONS[e.code];
@@ -43,6 +47,26 @@ export class Input {
       if (actions) for (const a of actions) if (!this.held(a)) this.releasedSet.add(a);
     });
     addEventListener('blur', () => this.codes.clear());
+  }
+
+  // Menus can be pointed at and clicked. Coordinates are the game's view units.
+  attachMouse(canvas, viewW, viewH) {
+    const toView = (e) => {
+      const r = canvas.getBoundingClientRect();
+      return { x: ((e.clientX - r.left) / r.width) * viewW, y: ((e.clientY - r.top) / r.height) * viewH };
+    };
+    canvas.addEventListener('mousemove', (e) => {
+      this.mouse = toView(e);
+      this.mouseMoved = true;
+    });
+    canvas.addEventListener('mouseleave', () => (this.mouse = null));
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      this.mouse = toView(e);
+      this.clicked = true;
+      this.anyPressed = true;
+      for (const fn of this.listeners) fn(e);
+    });
   }
 
   onKey(fn) {
@@ -70,6 +94,8 @@ export class Input {
     this.pressedSet.clear();
     this.releasedSet.clear();
     this.anyPressed = false;
+    this.mouseMoved = false;
+    this.clicked = false;
   }
 
   label(action) {

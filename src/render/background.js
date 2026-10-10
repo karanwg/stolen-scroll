@@ -19,6 +19,22 @@ export class Background {
       this.initSea();
       return;
     }
+    if (theme === 'snow') {
+      this.initSnow();
+      return;
+    }
+    if (theme === 'derelict') {
+      this.initDerelict();
+      return;
+    }
+    if (theme === 'crater') {
+      this.initCrater();
+      return;
+    }
+    if (theme === 'ship' || theme === 'nest') {
+      this.initShip(theme === 'nest');
+      return;
+    }
     this.layers = [
       this.makeLayer({ fx: 0.05, fy: 0.03, screenBase: 380, seed: 1, paint: paintMountains, fill: '#3a1520' }),
       this.makeLayer({ fx: 0.16, fy: 0.1, screenBase: 420, seed: 2, paint: paintCastleHills, fill: '#1a0c18' }),
@@ -40,6 +56,10 @@ export class Background {
 
   draw(ctx, camLeft, camTop, t, weather = null) {
     if (this.theme === 'sea') return this.drawSea(ctx, camLeft, camTop, t, weather);
+    if (this.theme === 'snow') return this.drawSnow(ctx, camLeft, camTop, t);
+    if (this.theme === 'derelict') return this.drawDerelict(ctx, camLeft, camTop, t);
+    if (this.theme === 'crater') return this.drawCrater(ctx, camLeft, camTop, t);
+    if (this.theme === 'ship' || this.theme === 'nest') return this.drawShip(ctx, camLeft, camTop, t);
     // Sky
     const lift = Math.max(0, Math.min(1, (REF_TOP - camTop) / 900));
     const sky = ctx.createLinearGradient(0, 0, 0, VIEW_H);
@@ -221,6 +241,182 @@ export class Background {
       ctx.fillStyle = `rgba(200,225,255,${flash * 0.12})`;
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
+  }
+
+  // ── Moonlit mountains (Chapter III, first half) ────────────
+  initSnow() {
+    this.refTop = 1150;
+    this.layers = [
+      this.makeLayer({ fx: 0.03, fy: 0.02, screenBase: 330, seed: 31, paint: paintFarPeaks, fill: '#1c2a44' }),
+      this.makeLayer({ fx: 0.12, fy: 0.07, screenBase: 380, seed: 32, paint: paintMidRanges, fill: '#132036' }),
+      this.makeLayer({ fx: 0.3, fy: 0.18, screenBase: 450, seed: 33, paint: paintSnowForest, fill: '#0c1424' }),
+    ];
+    const rnd = mulberry32(13);
+    this.stars = Array.from({ length: 140 }, () => ({ x: rnd() * VIEW_W, y: rnd() * 300, r: rnd() * 1.2 + 0.3, tw: rnd() * 6 }));
+  }
+
+  drawSnow(ctx, camLeft, camTop, t) {
+    const dy = this.drawNightSky(ctx, camLeft, camTop, t, 1);
+    // the fallen star's glow, rising from behind the far peaks
+    const starX = 1700 - camLeft * 0.03;
+    glow(ctx, ((starX % 1600) + 1600) % 1600 - 200, 330 - dy, 300, 'rgb(90,255,170)', 0.22 + 0.05 * Math.sin(t * 0.8));
+    for (let i = 0; i < this.layers.length; i++) this.drawLayer(ctx, this.layers[i], camLeft, camTop, t);
+    // valley fog
+    const fog = ctx.createLinearGradient(0, VIEW_H * 0.55, 0, VIEW_H);
+    fog.addColorStop(0, 'rgba(160,185,220,0)');
+    fog.addColorStop(1, 'rgba(160,185,220,0.12)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  }
+
+  // Stars, aurora and moon over the mountains; returns the vertical drift.
+  drawNightSky(ctx, camLeft, camTop, t, aurora) {
+    const dy = (camTop - this.refTop) * 0.02;
+    const sky = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+    sky.addColorStop(0, '#040812');
+    sky.addColorStop(0.5, '#0b1630');
+    sky.addColorStop(1, '#203457');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    for (const st of this.stars) {
+      ctx.globalAlpha = (0.45 + 0.35 * Math.sin(t * 1.4 + st.tw)) * (1 - st.y / 360);
+      ctx.fillStyle = '#eef4ff';
+      ctx.beginPath();
+      ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // aurora: slow, swaying ribbons
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let band = 0; band < 3; band++) {
+      const baseY = 70 + band * 34 - dy * 2;
+      const col = band === 1 ? '120,255,190' : band === 2 ? '150,120,255' : '90,230,200';
+      for (let x = -40; x < VIEW_W + 40; x += 6) {
+        const u = (x + camLeft * 0.02) * 0.004;
+        const y = baseY + Math.sin(u * 3 + t * 0.25 + band) * 24 + Math.sin(u * 7 - t * 0.4) * 8;
+        const hgt = 40 + 30 * Math.sin(u * 5 + t * 0.3 + band * 2);
+        const a = 0.05 + 0.04 * Math.sin(u * 9 + t * 0.7 + band);
+        const g = ctx.createLinearGradient(0, y - hgt, 0, y);
+        g.addColorStop(0, `rgba(${col},0)`);
+        g.addColorStop(1, `rgba(${col},${a})`);
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y - hgt, 7, hgt);
+      }
+    }
+    ctx.restore();
+    // full moon
+    const mx = 760 - (camLeft * 0.01) % 300;
+    const my = 96 - dy * 2;
+    glow(ctx, mx, my, 220, 'rgb(190,210,255)', 0.35);
+    const mg = ctx.createRadialGradient(mx - 10, my - 12, 3, mx, my, 44);
+    mg.addColorStop(0, '#ffffff');
+    mg.addColorStop(1, '#c6d4ea');
+    ctx.fillStyle = mg;
+    ctx.beginPath();
+    ctx.arc(mx, my, 44, 0, Math.PI * 2);
+    ctx.fill();
+    return dy;
+  }
+
+  // ── The crater: the night sky over a scar of glass and smoke ─
+  initCrater() {
+    this.refTop = 1150;
+    this.layers = [
+      this.makeLayer({ fx: 0.03, fy: 0.02, screenBase: 330, seed: 31, paint: paintFarPeaks, fill: '#1c2a44' }),
+      this.makeLayer({ fx: 0.14, fy: 0.08, screenBase: 420, seed: 71, paint: paintCraterRim, fill: '#071012' }),
+    ];
+    const rnd = mulberry32(13);
+    this.stars = Array.from({ length: 140 }, () => ({ x: rnd() * VIEW_W, y: rnd() * 300, r: rnd() * 1.2 + 0.3, tw: rnd() * 6 }));
+    const r2 = mulberry32(77);
+    this.plume = Array.from({ length: 26 }, (_, i) => ({ k: i / 26, ox: (r2() - 0.5) * 60, r: 40 + r2() * 50, seed: r2() * 10 }));
+  }
+
+  drawCrater(ctx, camLeft, camTop, t) {
+    const dy = this.drawNightSky(ctx, camLeft, camTop, t, 1);
+    this.drawLayer(ctx, this.layers[0], camLeft, camTop, t);
+    // the crash glow, close now, and its column of smoke leaning in the wind
+    const px = 620 - camLeft * 0.06 + 13200 * 0.06;
+    glow(ctx, px, 470 - dy, 420, 'rgb(90,255,170)', 0.3 + 0.06 * Math.sin(t * 0.7));
+    for (const b of this.plume) {
+      const k = (b.k + t * 0.012) % 1;
+      const x = px + b.ox * (1 + k) + k * 260 + Math.sin(t * 0.3 + b.seed) * 20;
+      const y = 470 - dy - k * 520;
+      const r = b.r * (0.6 + k * 1.6);
+      const a = 0.32 * Math.sin(k * Math.PI);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(30,44,46,${a})`);
+      g.addColorStop(1, 'rgba(30,44,46,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    this.drawLayer(ctx, this.layers[1], camLeft, camTop, t);
+    const fog = ctx.createLinearGradient(0, VIEW_H * 0.5, 0, VIEW_H);
+    fog.addColorStop(0, 'rgba(90,200,160,0)');
+    fog.addColorStop(1, 'rgba(90,200,160,0.1)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  }
+
+  // ── Inside the Tethys: the corridor's back wall ─────────────
+  initShip(nest) {
+    this.refTop = 1150;
+    this.nest = nest;
+    this.wall = this.makeLayer({ fx: 0.9, fy: 0.9, screenBase: 0, seed: nest ? 82 : 81, paint: nest ? paintNestWall : paintShipWall, fill: 'none' });
+    this.deep = this.makeLayer({ fx: 0.6, fy: 0.6, screenBase: 0, seed: 83, paint: paintShipDeep, fill: 'none' });
+  }
+
+  drawShip(ctx, camLeft, camTop, t) {
+    ctx.fillStyle = this.nest ? '#060506' : '#07090c';
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    this.drawTiled(ctx, this.deep, camLeft, camTop, t);
+    this.drawTiled(ctx, this.wall, camLeft, camTop, t);
+  }
+
+  // A layer repeated in both directions (walls, not skylines).
+  drawTiled(ctx, L, camLeft, camTop, t) {
+    let ox = -((camLeft * L.fx) % LAYER_W);
+    if (ox > 0) ox -= LAYER_W;
+    let oy = -((camTop * L.fy) % LAYER_H);
+    if (oy > 0) oy -= LAYER_H;
+    for (let y = oy; y < VIEW_H; y += LAYER_H) {
+      for (let x = ox; x < VIEW_W; x += LAYER_W) {
+        ctx.drawImage(L.canvas, x, y, LAYER_W, LAYER_H);
+        for (const g of L.glows) {
+          const gx = x + g.x;
+          const gy = y + g.y;
+          if (gx < -g.r || gx > VIEW_W + g.r || gy < -g.r || gy > VIEW_H + g.r) continue;
+          const on = g.blink ? (Math.sin(t * g.blink + g.seed) > 0.2 ? 1 : 0.15) : 0.7 + 0.3 * noise1(t * 2.2 + g.seed, g.seed);
+          glow(ctx, gx, gy, g.r, g.color, g.a * on);
+        }
+      }
+    }
+  }
+
+  // ── Inside the derelict (Chapter III, second half) ─────────
+  initDerelict() {
+    this.refTop = 1150;
+    this.layers = [
+      this.makeLayer({ fx: 0.08, fy: 0.05, screenBase: 600, seed: 41, paint: paintHullCavern, fill: '#070b0b' }),
+      this.makeLayer({ fx: 0.26, fy: 0.15, screenBase: 640, seed: 42, paint: paintConduits, fill: 'none' }),
+    ];
+    this.boneWall = this.makeLayer({ fx: 0.85, fy: 0.85, screenBase: 0, seed: 43, paint: paintBoneWall, fill: 'none' });
+  }
+
+  drawDerelict(ctx, camLeft, camTop, t) {
+    const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+    g.addColorStop(0, '#020404');
+    g.addColorStop(0.5, '#071010');
+    g.addColorStop(1, '#030606');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    this.drawLayer(ctx, this.layers[0], camLeft, camTop, t);
+    // a slow pulse moving through the walls, like something breathing
+    const pulse = Math.max(0, Math.sin(t * 1.1)) ** 6;
+    ctx.fillStyle = `rgba(60,140,110,${0.05 * pulse})`;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    this.drawLayer(ctx, this.layers[1], camLeft, camTop, t);
+    this.drawTiled(ctx, this.boneWall, camLeft, camTop, t);
   }
 
   drawLayer(ctx, L, camLeft, camTop, t) {
@@ -554,6 +750,365 @@ function makeTentacleSilhouette() {
   arm(90, 0.6, 2.6, 260, 22);
   arm(190, -0.4, -2.2, 200, 16);
   return c;
+}
+
+// ── Snow painters ────────────────────────────────────────────
+function ridgeWithSnow(g, seed, amp, base, rock, snow, freq, snowline) {
+  const pts = [];
+  for (let x = 0; x <= LAYER_W; x += 6) {
+    const u = x / LAYER_W;
+    const n = fbm1(u * freq, seed) * (1 - u) + fbm1((u - 1) * freq, seed) * u;
+    pts.push([x, base - n * amp]);
+  }
+  g.fillStyle = rock;
+  g.beginPath();
+  g.moveTo(0, LAYER_H);
+  for (const [x, y] of pts) g.lineTo(x, y);
+  g.lineTo(LAYER_W, LAYER_H);
+  g.fill();
+  // snow on everything above the snowline, ragged at the bottom
+  g.save();
+  g.beginPath();
+  g.moveTo(0, LAYER_H);
+  for (const [x, y] of pts) g.lineTo(x, y);
+  g.lineTo(LAYER_W, LAYER_H);
+  g.clip();
+  g.fillStyle = snow;
+  g.beginPath();
+  g.moveTo(0, 0);
+  for (let x = 0; x <= LAYER_W; x += 12) g.lineTo(x, snowline + fbm1(x * 0.02, seed + 5) * 60 - 30);
+  g.lineTo(LAYER_W, 0);
+  g.fill();
+  g.restore();
+}
+
+function paintFarPeaks(g) {
+  ridgeWithSnow(g, 51, 380, BASE + 20, '#1c2a44', '#8fa3c4', 5, BASE - 220);
+}
+
+function paintMidRanges(g, rnd, glows) {
+  ridgeWithSnow(g, 52, 230, BASE + 10, '#132036', '#6f84a8', 7, BASE - 130);
+  // a cliff temple far off, windows lit
+  g.fillStyle = '#132036';
+  pagodaSilhouette(g, 960, BASE - 150, 60, 4, 22);
+  g.fillStyle = 'rgba(255,190,120,0.6)';
+  g.fillRect(956, BASE - 186, 8, 6);
+  glows.push({ x: 960, y: BASE - 180, r: 60, color: 'rgb(255,180,110)', a: 0.4, seed: 2 });
+}
+
+function paintSnowForest(g, rnd) {
+  const col = '#0c1424';
+  g.fillStyle = col;
+  g.beginPath();
+  g.moveTo(0, LAYER_H);
+  for (let x = 0; x <= LAYER_W; x += 10) {
+    const u = x / LAYER_W;
+    const n = fbm1(u * 4, 61) * (1 - u) + fbm1((u - 1) * 4, 61) * u;
+    g.lineTo(x, BASE - 20 - n * 70);
+  }
+  g.lineTo(LAYER_W, LAYER_H);
+  g.fill();
+  // snow-laden cedars
+  for (let i = 0; i < 60; i++) {
+    const x = rnd() * LAYER_W;
+    const h = 50 + rnd() * 70;
+    const yb = BASE - 20 - rnd() * 30;
+    g.fillStyle = col;
+    g.beginPath();
+    g.moveTo(x, yb - h);
+    g.lineTo(x - h * 0.28, yb);
+    g.lineTo(x + h * 0.28, yb);
+    g.fill();
+    g.fillStyle = 'rgba(200,215,240,0.55)';
+    for (let k = 0; k < 3; k++) {
+      const ky = yb - h * (0.25 + k * 0.25);
+      const kw = h * 0.28 * (1 - (k + 1) * 0.22);
+      g.beginPath();
+      g.moveTo(x - kw, ky + 4);
+      g.quadraticCurveTo(x, ky - 6, x + kw, ky + 4);
+      g.lineTo(x, ky);
+      g.fill();
+    }
+  }
+}
+
+// ── Derelict painters ────────────────────────────────────────
+function paintHullCavern(g, rnd, glows) {
+  // great curved ribs of the hull receding into darkness
+  for (let i = 0; i < 9; i++) {
+    const x = i * 160 + rnd() * 30;
+    const grad = g.createLinearGradient(x - 40, 0, x + 40, 0);
+    grad.addColorStop(0, 'rgba(14,22,22,0)');
+    grad.addColorStop(0.5, 'rgba(24,36,36,0.95)');
+    grad.addColorStop(1, 'rgba(14,22,22,0)');
+    g.fillStyle = grad;
+    g.beginPath();
+    g.moveTo(x - 50, LAYER_H);
+    g.bezierCurveTo(x - 70, BASE - 250, x - 10, 40, x + 90, -20);
+    g.lineTo(x + 120, -20);
+    g.bezierCurveTo(x + 20, 60, x - 20, BASE - 240, x + 10, LAYER_H);
+    g.fill();
+    // vertebra-like nodes along the rib
+    g.fillStyle = 'rgba(40,58,56,0.8)';
+    for (let k = 0; k < 6; k++) {
+      const u = k / 6;
+      g.beginPath();
+      g.ellipse(x - 50 + u * 90 + Math.sin(u * 3) * 10, LAYER_H - u * (LAYER_H + 20), 9, 5, 0.4, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  // distant cold lights
+  for (let i = 0; i < 6; i++) glows.push({ x: rnd() * LAYER_W, y: 120 + rnd() * 300, r: 50 + rnd() * 40, color: 'rgb(90,220,170)', a: 0.25, seed: i * 3 });
+}
+
+function paintConduits(g, rnd) {
+  // pipes and cables crossing closer to the camera
+  g.strokeStyle = 'rgba(10,16,16,0.95)';
+  g.lineCap = 'round';
+  for (let i = 0; i < 7; i++) {
+    const y = 60 + rnd() * 500;
+    g.lineWidth = 6 + rnd() * 14;
+    g.beginPath();
+    g.moveTo(-20, y);
+    g.bezierCurveTo(LAYER_W * 0.3, y + (rnd() - 0.5) * 200, LAYER_W * 0.6, y + (rnd() - 0.5) * 200, LAYER_W + 20, y);
+    g.stroke();
+  }
+  g.strokeStyle = 'rgba(80,120,110,0.15)';
+  g.lineWidth = 1.5;
+  for (let i = 0; i < 7; i++) {
+    const y = 60 + rnd() * 500;
+    g.beginPath();
+    g.moveTo(-20, y);
+    g.bezierCurveTo(LAYER_W * 0.3, y + (rnd() - 0.5) * 200, LAYER_W * 0.6, y + (rnd() - 0.5) * 200, LAYER_W + 20, y);
+    g.stroke();
+  }
+}
+
+// ── Crater, ship and nest painters ───────────────────────────
+function paintCraterRim(g, rnd, glows) {
+  // the crater's far wall: jagged black glass, lit green from below
+  const pts = [];
+  for (let x = 0; x <= LAYER_W; x += 14) {
+    const u = x / LAYER_W;
+    const n = fbm1(u * 6, 72) * (1 - u) + fbm1((u - 1) * 6, 72) * u;
+    pts.push([x, BASE - 60 - n * 110 - (Math.sin(u * Math.PI * 2) + 1) * 30]);
+  }
+  const grad = g.createLinearGradient(0, BASE - 250, 0, BASE + 100);
+  grad.addColorStop(0, '#0e1a1b');
+  grad.addColorStop(1, '#040707');
+  g.fillStyle = grad;
+  g.beginPath();
+  g.moveTo(0, LAYER_H);
+  for (const [x, y] of pts) g.lineTo(x, y);
+  g.lineTo(LAYER_W, LAYER_H);
+  g.fill();
+  g.strokeStyle = 'rgba(120,255,200,0.25)';
+  g.lineWidth = 1.5;
+  g.beginPath();
+  pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+  g.stroke();
+  // shards and crystal spires on the rim
+  for (let i = 0; i < 26; i++) {
+    const x = rnd() * LAYER_W;
+    const y = pts[Math.floor(x / 14)][1];
+    const h = 20 + rnd() * 60;
+    g.fillStyle = rnd() < 0.5 ? '#0b1414' : 'rgba(80,200,160,0.35)';
+    g.beginPath();
+    g.moveTo(x - 5, y + 4);
+    g.lineTo(x + (rnd() - 0.5) * 20, y - h);
+    g.lineTo(x + 6, y + 4);
+    g.fill();
+    if (rnd() < 0.3) glows.push({ x, y: y - h * 0.5, r: 40 + rnd() * 30, color: 'rgb(90,255,170)', a: 0.3, seed: i });
+  }
+}
+
+function paintShipWall(g, rnd, glows) {
+  // steel panels behind the corridor, bulkhead frames, pipe runs, stencils
+  g.fillStyle = '#12161b';
+  g.fillRect(0, 0, LAYER_W, LAYER_H);
+  for (let y = 0; y < LAYER_H; y += 70) {
+    for (let x = 0; x < LAYER_W; x += 100) {
+      g.fillStyle = (x / 100 + y / 70) % 2 ? '#151a20' : '#13181d';
+      g.fillRect(x + 2, y + 2, 96, 66);
+      g.fillStyle = 'rgba(255,255,255,0.03)';
+      g.fillRect(x + 2, y + 2, 96, 2);
+      g.fillStyle = '#20262d';
+      for (const [rx, ry] of [[6, 6], [92, 6], [6, 62], [92, 62]]) g.fillRect(x + rx, y + ry, 2, 2);
+    }
+  }
+  // bulkhead frames
+  for (let x = 60; x < LAYER_W; x += 350) {
+    g.fillStyle = '#0b0e11';
+    g.fillRect(x, 0, 34, LAYER_H);
+    g.fillStyle = '#1d232a';
+    g.fillRect(x + 4, 0, 26, LAYER_H);
+    g.fillStyle = '#2a3139';
+    g.fillRect(x + 4, 0, 3, LAYER_H);
+    for (let y = 20; y < LAYER_H; y += 60) {
+      g.fillStyle = '#39424c';
+      g.fillRect(x + 15, y, 4, 4);
+    }
+  }
+  // pipe runs
+  for (let i = 0; i < 4; i++) {
+    const y = 80 + i * 170 + rnd() * 30;
+    const w = 6 + rnd() * 8;
+    g.fillStyle = '#0a0d10';
+    g.fillRect(0, y - 1, LAYER_W, w + 2);
+    g.fillStyle = '#1e252c';
+    g.fillRect(0, y, LAYER_W, w);
+    g.fillStyle = 'rgba(255,255,255,0.06)';
+    g.fillRect(0, y + 1, LAYER_W, 1.5);
+    for (let x = 40 + rnd() * 100; x < LAYER_W; x += 180 + rnd() * 120) {
+      g.fillStyle = '#2b333b';
+      g.fillRect(x, y - 3, 8, w + 6);
+    }
+  }
+  // stencils and hazard panels
+  g.font = 'bold 22px monospace';
+  for (let i = 0; i < 6; i++) {
+    const x = 120 + i * 230 + rnd() * 40;
+    const y = 160 + rnd() * 400;
+    g.fillStyle = 'rgba(190,180,140,0.12)';
+    g.fillText(['B-07', 'C-12', 'NO STEP', 'D-03', 'HAB 2', 'VENT 4'][i], x, y);
+  }
+  for (let i = 0; i < 3; i++) {
+    const x = 200 + i * 450;
+    const y = 300 + rnd() * 200;
+    g.save();
+    g.beginPath();
+    g.rect(x, y, 60, 14);
+    g.clip();
+    g.fillStyle = 'rgba(184,146,42,0.35)';
+    g.fillRect(x, y, 60, 14);
+    g.fillStyle = 'rgba(10,10,12,0.8)';
+    for (let k = -14; k < 60; k += 12) {
+      g.beginPath();
+      g.moveTo(x + k, y + 14);
+      g.lineTo(x + k + 7, y);
+      g.lineTo(x + k + 13, y);
+      g.lineTo(x + k + 6, y + 14);
+      g.fill();
+    }
+    g.restore();
+  }
+  // vent grilles and status lights
+  for (let i = 0; i < 5; i++) {
+    const x = rnd() * LAYER_W;
+    const y = rnd() * LAYER_H;
+    g.fillStyle = '#07090b';
+    g.fillRect(x, y, 44, 26);
+    g.fillStyle = '#1b2127';
+    for (let k = 0; k < 5; k++) g.fillRect(x + 2, y + 3 + k * 5, 40, 2);
+  }
+  for (let i = 0; i < 9; i++) {
+    const x = rnd() * LAYER_W;
+    const y = rnd() * LAYER_H;
+    const col = ['rgb(120,255,140)', 'rgb(255,80,60)', 'rgb(255,190,80)'][i % 3];
+    g.fillStyle = col;
+    g.fillRect(x, y, 3, 3);
+    glows.push({ x: x + 1.5, y: y + 1.5, r: 10, color: col, a: 0.6, seed: i * 1.7, blink: i % 2 ? 2 + rnd() * 3 : 0 });
+  }
+}
+
+function paintShipDeep(g, rnd) {
+  // where wall panels are missing: girders and darkness further in
+  g.strokeStyle = 'rgba(30,36,42,0.9)';
+  g.lineWidth = 10;
+  for (let x = 0; x < LAYER_W; x += 140) {
+    g.beginPath();
+    g.moveTo(x, 0);
+    g.lineTo(x + 70, LAYER_H);
+    g.stroke();
+  }
+}
+
+function paintNestWall(g, rnd, glows) {
+  paintShipWall(g, rnd, []);
+  // black resin has grown over everything: glossy ribbing, drips, and the people it kept
+  g.fillStyle = 'rgba(6,8,8,0.82)';
+  for (let i = 0; i < 40; i++) {
+    const x = rnd() * LAYER_W;
+    const y = rnd() * LAYER_H;
+    g.beginPath();
+    g.ellipse(x, y, 60 + rnd() * 120, 40 + rnd() * 90, rnd() * 3, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.strokeStyle = 'rgba(14,20,19,0.95)';
+  g.lineCap = 'round';
+  for (let i = 0; i < 60; i++) {
+    const x = rnd() * LAYER_W;
+    const y = rnd() * LAYER_H;
+    g.lineWidth = 4 + rnd() * 8;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.bezierCurveTo(x + (rnd() - 0.5) * 80, y + 40, x + (rnd() - 0.5) * 80, y + 90, x + (rnd() - 0.5) * 60, y + 140);
+    g.stroke();
+  }
+  g.strokeStyle = 'rgba(140,190,180,0.12)';
+  g.lineWidth = 1.2;
+  for (let i = 0; i < 40; i++) {
+    const x = rnd() * LAYER_W;
+    const y = rnd() * LAYER_H;
+    g.beginPath();
+    g.arc(x, y, 10 + rnd() * 30, 3.4, 5.2);
+    g.stroke();
+  }
+  // cocooned shapes set into the wall
+  for (let i = 0; i < 7; i++) {
+    const x = 90 + i * 190 + rnd() * 40;
+    const y = 200 + rnd() * 300;
+    g.fillStyle = '#0d1211';
+    g.beginPath();
+    g.ellipse(x, y, 18, 42, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = 'rgba(170,165,150,0.22)';
+    g.beginPath();
+    g.ellipse(x, y - 26, 7, 8, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.7)';
+    g.fillRect(x - 4, y - 28, 2.4, 3);
+    g.fillRect(x + 1.6, y - 28, 2.4, 3);
+    glows.push({ x, y: y + 10, r: 50, color: 'rgb(90,200,160)', a: 0.12, seed: i });
+  }
+}
+
+function paintBoneWall(g, rnd, glows) {
+  // the derelict's inner wall: a lattice of vertebrae and tubes, like the inside of a ribcage
+  g.fillStyle = 'rgba(8,13,13,0.0)';
+  g.fillRect(0, 0, LAYER_W, LAYER_H);
+  for (let x = 30; x < LAYER_W; x += 120) {
+    // a column of vertebrae
+    for (let y = -20; y < LAYER_H + 20; y += 26) {
+      const wob = Math.sin(y * 0.02 + x) * 6;
+      g.fillStyle = 'rgba(22,32,31,0.9)';
+      g.beginPath();
+      g.ellipse(x + wob, y, 16, 10, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = 'rgba(10,16,16,0.95)';
+      g.beginPath();
+      g.ellipse(x + wob, y + 12, 9, 4, 0, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = 'rgba(120,170,160,0.14)';
+      g.lineWidth = 1;
+      g.beginPath();
+      g.ellipse(x + wob, y, 14, 8, 0, Math.PI * 1.1, Math.PI * 1.9);
+      g.stroke();
+    }
+  }
+  // ribs curving between the columns
+  g.strokeStyle = 'rgba(16,24,24,0.85)';
+  g.lineCap = 'round';
+  for (let i = 0; i < 30; i++) {
+    const x = Math.floor(rnd() * 11) * 120 + 30;
+    const y = rnd() * LAYER_H;
+    g.lineWidth = 5 + rnd() * 4;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.quadraticCurveTo(x + 60, y - 40 + rnd() * 20, x + 120, y);
+    g.stroke();
+  }
+  for (let i = 0; i < 5; i++) glows.push({ x: rnd() * LAYER_W, y: rnd() * LAYER_H, r: 30, color: 'rgb(90,220,170)', a: 0.15, seed: i * 2.3 });
 }
 
 export { glowSprite };

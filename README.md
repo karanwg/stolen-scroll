@@ -12,6 +12,13 @@ Playable now:
   of Chapter I) — stilt village, wreck cove, lighthouse, open strait, floating
   shrine. Kappa, jellyfish, sea tentacles, storm crows. The **Mizugumo**
   (water-walking) and **Kite Cloth** (float), and the Kraken.
+- **Chapter III — The Fallen Star**: about twice the length of Chapter II. Snow
+  first — the frozen pass, a Binoshi camp ambush, a cliff temple of bells, an
+  onsen, the frozen falls — then, gradually, the wreck: a scorched slope, a
+  crater of black glass, the crashed salvage ship MSV Tethys (strip lights,
+  hypersleep, a power failure), the alien derelict fused into
+  it (the Pilot, the egg chamber), and the nest in the cargo bay: the
+  Xenomorph. The **Kage-ashi** (shadow dash and sprint), the **Kaginawa** (grappling hook) and the **Shuko Claws** (wall jump).
 
 Finishing a chapter rolls straight into the next; **Chapter Select** on the title
 screen replays any chapter you've reached (abilities carry over).
@@ -29,15 +36,18 @@ Open http://localhost:5180.
 
 | Action | Keys |
 |---|---|
-| Move | ← → or A D |
+| Move | ← → |
 | Jump (hold for height) | Z or Space |
 | Slash (hold ↑ / ↓ to aim, ↓ in the air to pogo) | X or J |
 | Dash | C, K or Shift |
-| Interact / meditate at lanterns | ↑ or W |
+| Shadow dash (Kage-ashi) | every 3 s a dash makes you untouchable for its length |
+| Sprint (Kage-ashi) | keep holding Dash after the burst |
+| Interact / meditate at lanterns | ↑ |
 | Drop through a beam | ↓ + Jump |
 | Float (Kite Cloth) | press and hold Jump in midair; hold Jump inside a geyser to ride it |
 | Water walk (Mizugumo) | just run onto calm water — keep moving or you sink; whitecaps can't be walked on |
-| Wall jump (once unlocked) | hold toward a wall, then Jump |
+| Wall jump (Shuko Claws) | hold toward a wall, then Jump — ice walls are slippery |
+| Grapple (Kaginawa) | hold S near a ring; ← → pump the swing, ↑ ↓ reel, Jump to launch off, let go of S to drop |
 | Pause · Mute | Esc · M |
 
 ## Dev tools
@@ -48,8 +58,9 @@ Open http://localhost:5180.
   slow-motion and warp buttons.
 - **`/debug/poses.html`** draws every character pose large (`?only=float`, `?style=binoshi`).
 - In the console, `H` (from `debug/harness.js`) drives the game deterministically:
-  `H.fresh()`, `H.chapter(2)`, `H.warp(x, y)`, `H.hold('right')`, `H.secs(1)`,
-  `H.bounceOn(jelly)`, `H.snap('name')` → `.snaps/name.png`.
+  `H.fresh()`, `H.chapter(3)`, `H.warp(x, y)`, `H.hold('right')`, `H.secs(1)`,
+  `H.bounceOn(jelly)`, `H.swingTo(...)`, `H.snap('name')` → `.snaps/name.png`.
+- **`/debug/xeno.html`** draws the Xenomorph's poses (`?only=roar&s=3`).
 
 ## Layout
 
@@ -58,8 +69,9 @@ src/
   config.js            tuning constants (the feel)
   game.js              game loop, modes, combat, triggers, rendering order
   core/                input, camera, synthesized audio, math
-  world/               level + collision, themes, stage1 + stage2 layouts
-  entities/            player, Binoshi enemies, sea creatures, Balrog, Kraken, props
+  world/               level + collision, themes, stage1–3 layouts
+  entities/            player, Binoshi enemies, sea and snow creatures, aliens,
+                       the Tethys's machinery, Balrog, Kraken, Xenomorph, props
   render/              ninja rig, skies, terrain, props, water, weather, lighting
   ui/                  HUD, dialogue, menus and cards, tuning panel
   data/story.js        all story text

@@ -49,11 +49,12 @@ export class WaterRenderer {
       const xa = Math.max(rx0, view.x0 - 16);
       const xb = Math.min(rx1, view.x1 + 16);
 
-      // body
+      // body (some themes tint their water: the onsen is milky and warm)
+      const tint = this.level.themeAtTile(run.x0).water;
       const grad = ctx.createLinearGradient(0, y0, 0, y0 + 260);
-      grad.addColorStop(0, 'rgba(32,78,104,0.78)');
-      grad.addColorStop(0.35, 'rgba(10,32,48,0.9)');
-      grad.addColorStop(1, 'rgba(3,10,18,0.97)');
+      grad.addColorStop(0, tint?.top || 'rgba(32,78,104,0.78)');
+      grad.addColorStop(0.35, tint?.mid || 'rgba(10,32,48,0.9)');
+      grad.addColorStop(1, tint?.deep || 'rgba(3,10,18,0.97)');
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.moveTo(xa, yb);
