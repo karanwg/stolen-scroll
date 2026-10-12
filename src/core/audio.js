@@ -497,6 +497,76 @@ export class Audio {
       this.tone({ type: 'sawtooth', freq: 900, freqEnd: 200, dur: 2.6, gain: 0.08, reverb: 1 });
       this.noise({ dur: 2.6, gain: 0.2, filter: 'bandpass', freq: 1600, freqEnd: 300, q: 1.5, reverb: 1 });
     },
+    // ── Chapter IV ──
+    shiftIn() {
+      // into the Upside Down: a sucked-in breath and a low drop
+      this.noise({ dur: 0.45, gain: 0.25, freq: 3000, freqEnd: 200, q: 0.8, attack: 0.15 });
+      this.tone({ type: 'sine', freq: 180, freqEnd: 45, dur: 0.6, gain: 0.25, reverb: 0.8 });
+      this.tone({ type: 'sawtooth', freq: 90, freqEnd: 60, dur: 0.5, gain: 0.05, reverb: 0.8 });
+    },
+    shiftOut() {
+      // back into the world: air rushing back
+      this.noise({ dur: 0.35, gain: 0.22, freq: 300, freqEnd: 3500, q: 0.8 });
+      this.tone({ type: 'sine', freq: 60, freqEnd: 200, dur: 0.35, gain: 0.18 });
+    },
+    shiftFail() {
+      this.tone({ type: 'square', freq: 110, dur: 0.12, gain: 0.08 });
+      this.tone({ type: 'square', freq: 104, dur: 0.12, gain: 0.08, delay: 0.13 });
+    },
+    bark() {
+      for (let i = 0; i < 2; i++) {
+        this.noise({ dur: 0.09, gain: 0.18, filter: 'bandpass', freq: 900, q: 2, delay: i * 0.16 });
+        this.tone({ type: 'sawtooth', freq: 320, freqEnd: 220, dur: 0.08, gain: 0.05, delay: i * 0.16 });
+      }
+    },
+    demodog() {
+      this.noise({ dur: 0.5, gain: 0.18, filter: 'bandpass', freq: 500, freqEnd: 300, q: 3 });
+      this.tone({ type: 'sawtooth', freq: 140, freqEnd: 90, dur: 0.5, gain: 0.06 });
+    },
+    demodogScreech() {
+      this.tone({ type: 'sawtooth', freq: 900, freqEnd: 1900, dur: 0.45, gain: 0.07, reverb: 0.5 });
+      this.noise({ dur: 0.45, gain: 0.2, filter: 'bandpass', freq: 2600, q: 2 });
+    },
+    flayed() {
+      this.tone({ type: 'sawtooth', freq: 120, freqEnd: 95, dur: 0.8, gain: 0.06, attack: 0.2 });
+      this.noise({ dur: 0.8, gain: 0.06, filter: 'bandpass', freq: 400, q: 4, attack: 0.2 });
+    },
+    freed() {
+      this.tone({ type: 'sine', freq: 523, dur: 0.6, gain: 0.04, reverb: 1 });
+      this.tone({ type: 'sine', freq: 784, dur: 0.8, gain: 0.03, delay: 0.1, reverb: 1 });
+    },
+    vineBurst() {
+      this.noise({ dur: 0.35, gain: 0.25, filter: 'lowpass', freq: 600 });
+      this.noise({ dur: 0.25, gain: 0.12, filter: 'bandpass', freq: 1600, q: 2, delay: 0.05 });
+    },
+    masterRage() {
+      this.noise({ dur: 0.9, gain: 0.2, filter: 'bandpass', freq: 700, freqEnd: 300, q: 2, attack: 0.05, reverb: 0.6 });
+      this.tone({ type: 'sawtooth', freq: 110, freqEnd: 70, dur: 0.9, gain: 0.08, reverb: 0.6 });
+    },
+    flayerGroan() {
+      this.tone({ type: 'sawtooth', freq: 55, freqEnd: 41, dur: 1.6, gain: 0.12, attack: 0.3, reverb: 0.8 });
+      this.noise({ dur: 1.6, gain: 0.1, filter: 'bandpass', freq: 220, freqEnd: 140, q: 5, attack: 0.3, reverb: 0.8 });
+    },
+    flayerRoar() {
+      this.tone({ type: 'sawtooth', freq: 70, freqEnd: 38, dur: 2.4, gain: 0.18, attack: 0.1, reverb: 1 });
+      this.tone({ type: 'sawtooth', freq: 104, freqEnd: 58, dur: 2.2, gain: 0.1, attack: 0.1, reverb: 1 });
+      this.noise({ dur: 2.4, gain: 0.25, filter: 'bandpass', freq: 400, freqEnd: 150, q: 1.5, attack: 0.1, reverb: 1 });
+    },
+    flayerHurt() {
+      this.noise({ dur: 0.3, gain: 0.25, filter: 'bandpass', freq: 900, freqEnd: 300, q: 2 });
+      this.tone({ type: 'sawtooth', freq: 140, freqEnd: 70, dur: 0.3, gain: 0.08 });
+    },
+    rumble() {
+      this.noise({ dur: 1, gain: 0.3, filter: 'lowpass', freq: 160, attack: 0.1 });
+    },
+    swarm() {
+      this.noise({ dur: 2.4, gain: 0.18, filter: 'bandpass', freq: 1800, q: 1.2, attack: 0.8, reverb: 0.5 });
+      for (let i = 0; i < 12; i++) this.noise({ dur: 0.02, gain: 0.05, filter: 'highpass', freq: 3000, delay: 0.6 + i * 0.12 });
+    },
+    gaze() {
+      this.tone({ type: 'sawtooth', freq: 220, freqEnd: 330, dur: 1.6, gain: 0.07, reverb: 0.6 });
+      this.tone({ type: 'sine', freq: 880, freqEnd: 990, dur: 1.6, gain: 0.03, reverb: 0.6 });
+    },
     blip() {
       this.tone({ type: 'sine', freq: 520 + Math.random() * 80, dur: 0.03, gain: 0.025 });
     },
@@ -631,6 +701,37 @@ export class Audio {
       if (r < 0.3) this.noise({ dur: 1.2, gain: 0.06, filter: 'bandpass', freq: 300, freqEnd: 900, q: 6, attack: 0.3, reverb: 0.8, bus: this.master }); // metal creak
       else if (r < 0.6) this.tone({ type: 'sine', freq: 1300, freqEnd: 650, dur: 0.12, gain: 0.03, reverb: 1, bus: this.master }); // drip
     }, 2600);
+    // Kagari at night: crickets.
+    this.cricketEvents = setInterval(() => {
+      if (!this.ctx || this.ambType !== 'night') return;
+      const f = 4200 + Math.random() * 600;
+      for (let i = 0; i < 3; i++) this.tone({ type: 'sine', freq: f, dur: 0.035, gain: 0.012, delay: i * 0.06, bus: this.master });
+    }, 700);
+    // Beneath: a storm drone, and now and then something like a whisper.
+    this.udGain = ctx.createGain();
+    this.udGain.gain.value = 0;
+    const storm = ctx.createBufferSource();
+    storm.buffer = this.noiseBuf;
+    storm.loop = true;
+    const sf2 = ctx.createBiquadFilter();
+    sf2.type = 'lowpass';
+    sf2.frequency.value = 220;
+    storm.connect(sf2).connect(this.udGain);
+    for (const [f, g] of [[41, 0.5], [61.5, 0.25]]) {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = f;
+      const og = ctx.createGain();
+      og.gain.value = g;
+      o.connect(og).connect(this.udGain);
+      o.start();
+    }
+    storm.start(0, 2.1);
+    this.udGain.connect(this.master);
+    this.udEvents = setInterval(() => {
+      if (!this.ctx || this.ambType !== 'upside') return;
+      if (Math.random() < 0.4) this.noise({ dur: 1.4, gain: 0.03, filter: 'bandpass', freq: 1200 + Math.random() * 800, q: 12, attack: 0.5, reverb: 1, bus: this.master });
+    }, 3100);
     this.setAmbienceType(this.ambType || 'fire');
 
     this.ambLevel = 1;
@@ -664,6 +765,7 @@ export class Audio {
     this.windGain?.gain.setTargetAtTime(this.ambType === 'wind' ? 0.12 * (0.5 + lvl * 0.5) : 0, t, 0.8);
     this.hullGain?.gain.setTargetAtTime(this.ambType === 'derelict' ? 0.12 : this.ambType === 'ship' ? 0.05 : 0, t, 1.2);
     this.shipGain?.gain.setTargetAtTime(this.ambType === 'ship' ? 0.05 : 0, t, 0.4);
+    this.udGain?.gain.setTargetAtTime(this.ambType === 'upside' ? 0.14 : 0, t, 0.6);
     this.fireFilter?.frequency.setTargetAtTime(1400 + near * 9000, t, 0.5);
     this.seaGain?.gain.setTargetAtTime(sea ? 0.16 * (0.5 + lvl * 0.5) : 0, t, 0.8);
     this.rainGain?.gain.setTargetAtTime(sea ? 0.035 : 0, t, 0.8);
@@ -682,7 +784,7 @@ export class Audio {
       this.step = 0;
       this.stopDrone();
       if (mode !== 'none') this.startDrone(mode);
-      this.musicBus.gain.setTargetAtTime(['boss', 'kraken', 'xeno', 'ambush'].includes(mode) ? 0.6 : 0.5, this.ctx.currentTime, 0.6);
+      this.musicBus.gain.setTargetAtTime(['boss', 'kraken', 'xeno', 'ambush', 'master', 'flayer'].includes(mode) ? 0.6 : 0.5, this.ctx.currentTime, 0.6);
     }, mode === 'none' ? 1200 : 700);
   }
 
@@ -690,7 +792,7 @@ export class Audio {
     const ctx = this.ctx;
     const out = ctx.createGain();
     out.gain.value = 0;
-    const heavy = mode === 'boss' || mode === 'kraken' || mode === 'xeno' || mode === 'ambush';
+    const heavy = mode === 'boss' || mode === 'kraken' || mode === 'xeno' || mode === 'ambush' || mode === 'master' || mode === 'flayer';
     if (mode === 'derelict' || mode === 'ship') {
       // no drone from the music bus here: the hull hum is the drone
       this.drone = { oscs: [], out: ctx.createGain() };
@@ -745,8 +847,11 @@ export class Audio {
       else if (this.musicMode === 'ambush') this.bossStep(this.step, this.nextTime);
       else if (this.musicMode === 'crater') this.craterStep(this.step, this.nextTime);
       else if (this.musicMode === 'ship') this.shipStep(this.step, this.nextTime);
+      else if (this.musicMode === 'upside') this.upsideStep(this.step, this.nextTime);
+      else if (this.musicMode === 'master') this.masterStep(this.step, this.nextTime);
+      else if (this.musicMode === 'flayer') this.flayerStep(this.step, this.nextTime);
       else if (this.musicMode === 'victory') this.victoryStep(this.step, this.nextTime);
-      const bpm = { boss: 148, kraken: 116, coast: 58, explore: 66, victory: 66, snow: 60, derelict: 70, xeno: 132, ambush: 150, crater: 56, ship: 72 }[this.musicMode] || 66;
+      const bpm = { boss: 148, kraken: 116, coast: 58, explore: 66, victory: 66, snow: 60, derelict: 70, xeno: 132, ambush: 150, crater: 56, ship: 72, upside: 84, master: 156, flayer: 120 }[this.musicMode] || 66;
       this.nextTime += 60 / bpm / 4;
       this.step++;
     }
@@ -894,6 +999,35 @@ export class Audio {
     if (s === 0 || s === 3) this.tone({ type: 'sine', freq: 52, freqEnd: 38, dur: 0.25, gain: s === 0 ? 0.22 : 0.15, delay: this.at(t), bus: this.musicBus });
     if (step % 128 === 64) for (const f of [233, 247, 311]) this.tone({ type: 'sine', freq: f, dur: 5, gain: 0.018, attack: 2, delay: this.at(t), bus: this.musicBus, reverb: 1 });
     if (Math.random() < 0.012) this.noise({ dur: 2, gain: 0.04, filter: 'bandpass', freq: 600, freqEnd: 200, q: 8, attack: 0.5, delay: this.at(t), bus: this.musicBus, reverb: 1 });
+  }
+
+  // The Upside Down: a cold, slow synth arpeggio over a pedal note.
+  upsideStep(step, t) {
+    const arp = [0, 4, 7, 11, 12, 11, 7, 4]; // C maj7, up and down
+    const root = [65.4, 65.4, 55, 58.3][Math.floor(step / 32) % 4];
+    const s = step % 8;
+    const f = root * 4 * Math.pow(2, arp[s] / 12);
+    this.tone({ type: 'square', freq: f, dur: 0.16, gain: 0.018, delay: this.at(t), bus: this.musicBus, reverb: 0.5 });
+    if (step % 32 === 0) this.tone({ type: 'sawtooth', freq: root, dur: 5.5, gain: 0.05, attack: 1, delay: this.at(t), bus: this.musicBus, reverb: 0.6 });
+  }
+
+  // The Master: fast taiko and a biting plucked figure.
+  masterStep(step, t) {
+    const s = step % 16;
+    if ([0, 3, 6, 8, 11, 14].includes(s)) this.taiko(t, s === 0 ? 0.6 : 0.4, s % 8 === 0);
+    if (s % 2 === 0) this.pluck([D3 * 2, D3 * 2.38, D3 * 2.67, D3 * 3][(step >> 1) % 4], t, 0.04);
+    if (step % 64 === 32) this.shakuhachi(D3 * 4, t, 1.2);
+  }
+
+  // The Mind Flayer: a heavy synth ostinato, taiko, and a sky-wide drone.
+  flayerStep(step, t) {
+    const s = step % 16;
+    if (s % 4 === 0) this.taiko(t, 0.6, true);
+    if (s === 10) this.taiko(t, 0.35, false);
+    const bass = [41.2, 41.2, 49, 41.2, 55, 49, 41.2, 61.7][(s >> 1) % 8];
+    if (s % 2 === 0) this.tone({ type: 'sawtooth', freq: bass, dur: 0.2, gain: 0.07, delay: this.at(t), bus: this.musicBus });
+    if (step % 64 === 0) for (const f of [164.8, 196, 246.9]) this.tone({ type: 'sawtooth', freq: f, dur: 3, gain: 0.025, attack: 0.6, delay: this.at(t), bus: this.musicBus, reverb: 0.7 });
+    if (s % 4 === 2) this.tone({ type: 'square', freq: bass * 8, dur: 0.08, gain: 0.015, delay: this.at(t), bus: this.musicBus, reverb: 0.4 });
   }
 
   // The crater: the snow theme's scale, slowed and thinned, under a high, wrong tone.

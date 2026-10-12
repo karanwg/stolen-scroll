@@ -6,6 +6,7 @@ import { SNOW_PAINTERS } from './decosSnow.js';
 import { ALIEN_PAINTERS } from './decosAlien.js';
 import { CRATER_PAINTERS } from './decosCrater.js';
 import { SHIP_PAINTERS } from './decosShip.js';
+import { KAGARI_PAINTERS } from './decosKagari.js';
 
 // Background props painted once into sprites. Each prop can also declare
 // fires (animated every frame) and lights (fed to the lighting pass).
@@ -444,7 +445,7 @@ const PAINTERS = {
   },
 };
 
-Object.assign(PAINTERS, SEA_PAINTERS, SNOW_PAINTERS, ALIEN_PAINTERS, CRATER_PAINTERS, SHIP_PAINTERS);
+Object.assign(PAINTERS, SEA_PAINTERS, SNOW_PAINTERS, ALIEN_PAINTERS, CRATER_PAINTERS, SHIP_PAINTERS, KAGARI_PAINTERS);
 
 function tileLines(g, x, eaveY, w, rise) {
   // fire-lit rim along the roof outline
@@ -484,6 +485,7 @@ export class DecoLayer {
     this.windows = []; // lit openings in the back wall that something can pass behind
     this.shafts = []; // beams of light falling from above
     this.blackout = []; // [{x0, x1, t}] — lights in this span are dead for t seconds
+    this.layer = 'real'; // which world is being drawn (Chapter IV)
     for (const d of level.decos) {
       const painter = PAINTERS[d.type];
       if (!painter) continue;
@@ -493,13 +495,15 @@ export class DecoLayer {
       const b = painter(probe, d, out);
       const item = { d, painter, b, sprite: null };
       this.items.push(item);
-      for (const f of out.fires) this.fires.push({ ...f, x: d.x + f.x, y: d.y + f.y, seed: Math.random() * 100 });
-      for (const l of out.lights) this.lights.push({ ...l, x: d.x + l.x, y: d.y + l.y });
-      for (const b of out.beams) this.beams.push({ ...b, x: d.x + b.x, y: d.y + b.y });
-      for (const st of out.steam) this.steam.push({ ...st, x: d.x + st.x, y: d.y + st.y });
-      for (const l of out.lamps) this.lamps.push({ ...l, x: d.x + l.x, y: d.y + l.y });
-      for (const w of out.windows) this.windows.push({ ...w, x: d.x + w.x, y: d.y + w.y });
-      for (const sh of out.shafts) this.shafts.push({ ...sh, x: d.x + sh.x, y: d.y + sh.y });
+      // in Chapter IV a deco can belong to one world: d.layer = 'real' | 'ud'
+      const L = d.layer;
+      for (const f of out.fires) this.fires.push({ ...f, x: d.x + f.x, y: d.y + f.y, seed: Math.random() * 100, layer: L });
+      for (const l of out.lights) this.lights.push({ ...l, x: d.x + l.x, y: d.y + l.y, layer: L });
+      for (const b of out.beams) this.beams.push({ ...b, x: d.x + b.x, y: d.y + b.y, layer: L });
+      for (const st of out.steam) this.steam.push({ ...st, x: d.x + st.x, y: d.y + st.y, layer: L });
+      for (const l of out.lamps) this.lamps.push({ ...l, x: d.x + l.x, y: d.y + l.y, layer: L });
+      for (const w of out.windows) this.windows.push({ ...w, x: d.x + w.x, y: d.y + w.y, layer: L });
+      for (const sh of out.shafts) this.shafts.push({ ...sh, x: d.x + sh.x, y: d.y + sh.y, layer: L });
     }
     // Tile-based fires: burning debris and barricades.
     this.level = level;
@@ -517,9 +521,15 @@ export class DecoLayer {
     return c;
   }
 
+  // Does this thing belong to the world currently being drawn?
+  here(o) {
+    return !o.layer || o.layer === this.layer;
+  }
+
   draw(ctx, view) {
     for (const item of this.items) {
       const { b, d } = item;
+      if (!this.here(d)) continue;
       if (d.x + b.x1 < view.x0 || d.x + b.x0 > view.x1 || d.y + b.y1 < view.y0 || d.y + b.y0 > view.y1) continue;
       ctx.drawImage(this.sprite(item), d.x + b.x0, d.y + b.y0, b.x1 - b.x0, b.y1 - b.y0);
     }
@@ -560,6 +570,7 @@ export class DecoLayer {
   drawDecoFires(ctx, view, t) {
     this.drawBeams(ctx, view, t);
     for (const f of this.fires) {
+      if (!this.here(f)) continue;
       if (f.x < view.x0 - 100 || f.x > view.x1 + 100 || f.y < view.y0 - 150 || f.y > view.y1 + 50) continue;
       glow(ctx, f.x, f.y - f.h * 0.3, f.w * 1.6, 'rgb(255,110,40)', 0.35);
       drawFire(ctx, f.x, f.y, f.w, f.h, t, f.seed);
@@ -623,6 +634,7 @@ export class DecoLayer {
   // Lit window interiors: drawn behind the decos, so bars and frames sit in front.
   drawWindows(ctx, view, t, state = {}) {
     for (const w of this.windows) {
+      if (!this.here(w)) continue;
       if (w.x + w.w < view.x0 || w.x > view.x1 || w.y + w.h < view.y0 || w.y > view.y1) continue;
       const g = ctx.createLinearGradient(0, w.y, 0, w.y + w.h);
       const red = state.powerOut;
@@ -642,6 +654,7 @@ export class DecoLayer {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (const l of this.lamps) {
+      if (!this.here(l)) continue;
       if (l.x < view.x0 - 80 || l.x > view.x1 + 80 || l.y < view.y0 - 80 || l.y > view.y1 + 80) continue;
       let k = lampLevel(l, t, state);
       if (k <= 0) continue;
@@ -661,6 +674,7 @@ export class DecoLayer {
     }
     // shafts of light from above, slowly breathing
     for (const sh of this.shafts) {
+      if (!this.here(sh)) continue;
       if (sh.x + sh.w < view.x0 - 200 || sh.x > view.x1 + 200) continue;
       const a = 0.12 + 0.03 * Math.sin(t * 0.6 + sh.x);
       const g = ctx.createLinearGradient(0, sh.y, 0, sh.y + sh.h);
@@ -681,6 +695,7 @@ export class DecoLayer {
   // Lights for the lighting pass (world space).
   collectLights(view, out, t, state = {}) {
     for (const l of this.lights) {
+      if (!this.here(l)) continue;
       if (l.x + l.r < view.x0 || l.x - l.r > view.x1 || l.y + l.r < view.y0 || l.y - l.r > view.y1) continue;
       if (this.blackout.some((b) => l.x >= b.x0 && l.x <= b.x1)) continue;
       const k = lampLevel(l, t, state);

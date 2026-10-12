@@ -37,6 +37,12 @@ export const ABILITY_INFO = {
     how: 'Hold toward a wall to cling, then JUMP away from it. Ice walls are slick.',
     color: '#ffd28f',
   },
+  mirror: {
+    name: 'Yata no Kagami',
+    verb: 'World Shift',
+    how: 'Press A to step through to the other side. You can\'t shift into solid ground.',
+    color: '#ff8a8a',
+  },
   kaginawa: {
     name: 'Kaginawa',
     verb: 'Grappling Hook',
@@ -88,6 +94,22 @@ export function drawAbilityIcon(ctx, ability, x, y, s, color = '#ffffff') {
         ctx.lineTo(-14 + l * 0.5, y);
         ctx.stroke();
       }
+      break;
+    }
+    case 'mirror': {
+      // the sacred bronze mirror, cracked down the middle
+      ctx.beginPath();
+      ctx.arc(0, 0, 11, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, 7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-2, -11);
+      ctx.lineTo(1, -3);
+      ctx.lineTo(-1, 3);
+      ctx.lineTo(2, 11);
+      ctx.stroke();
       break;
     }
     case 'shadowStep': {

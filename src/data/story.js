@@ -127,6 +127,13 @@ export const NPCS = {
   binoshi: { first: 'WOUNDED', after: 'WOUNDED_AFTER', auto: true },
   monk: { first: 'MONK', after: 'MONK_AFTER', auto: true },
   cocooned: { first: 'COCOONED', after: 'COCOONED_AFTER', auto: true },
+  v_woman: { first: 'V_WOMAN', after: 'V_WOMAN_AFTER' },
+  v_child: { first: 'V_CHILD', after: 'V_CHILD_AFTER' },
+  v_elder: { first: 'V_ELDER', after: 'V_ELDER_AFTER', auto: true },
+  v_man: { first: 'V_MAN', after: 'V_MAN_AFTER' },
+  v_dawn1: { first: 'V_DAWN1', after: 'V_DAWN1' },
+  v_dawn2: { first: 'V_DAWN2', after: 'V_DAWN2' },
+  v_dawn3: { first: 'V_DAWN3', after: 'V_DAWN3', auto: true },
 };
 
 // ── Chapter III — The Fallen Star ───────────────────────────
@@ -168,3 +175,97 @@ export const CHAPTER_END_3 = {
   sub: 'The Fallen Star',
   next: 'Next — The Upside Down',
 };
+
+// ── Chapter IV — The Upside Down ────────────────────────────
+export const OPENING_4 = [
+  'You came home along the violet footprints, and they ended at Kagari\'s gate.',
+  'The village has been rebuilt. The lanterns are lit. The cherry trees came into bloom.',
+  'And for three nights now, the sky has been red, and the people walk in their sleep.',
+];
+
+export const V_WOMAN = [
+  { who: 'Kiyo', text: 'You\'re back! Look at it — we rebuilt every house. The festival lanterns are up and everything.' },
+  { who: 'Kiyo', text: '…Nobody\'s sleeping, though. Or they are, and they get up anyway. My husband was at the shrine steps this morning with his eyes shut.' },
+];
+export const V_WOMAN_AFTER = [{ who: 'Kiyo', text: 'Bolt the door tonight. That\'s all anyone can think of.' }];
+
+export const V_CHILD = [
+  { who: 'Little Ren', text: 'The dog barks at the empty bit of the street. All night. Mama says there\'s nothing there.' },
+  { who: 'Little Ren', text: 'There is, though. I can hear it breathing.' },
+];
+export const V_CHILD_AFTER = [{ who: 'Little Ren', text: 'It\'s still breathing.' }];
+
+export const V_MAN = [
+  { who: 'Gonta', text: 'Saw a light on the old shrine hill last night. Red. Like the sky came down to have a look at us.' },
+];
+export const V_MAN_AFTER = [{ who: 'Gonta', text: 'I\'m not going up there. You go up there.' }];
+
+export const V_ELDER = [
+  { who: 'Elder Haru', text: 'There you are. I knew the footprints would bring you home — I only hoped you would arrive before they did.' },
+  { who: 'Elder Haru', text: 'The Master read the last name here. At our own shrine. And then he simply… went somewhere else. Somewhere beneath.' },
+  { who: 'Elder Haru', text: 'Our people walk toward the shrine in their sleep. Something under the world is calling them, the way the tide calls driftwood.' },
+  { who: 'Elder Haru', text: 'On the shrine\'s altar is the Yata no Kagami, the sacred mirror. It shows what is behind a thing. Hold it, and it will show you what is behind the world.' },
+  { who: 'Elder Haru', text: 'Bring back the Scroll. Bring back our people. And do not stay on the other side long. It does not let go easily.' },
+];
+export const V_ELDER_AFTER = [{ who: 'Elder Haru', text: 'The shrine. The mirror. Go.' }];
+
+export const MASTER_DEFEATED = [
+  { who: 'The Master', text: '…ah. The quiet. I had forgotten what it sounded like.' },
+  { who: 'The Master', text: 'I thought the names were weapons. Read them, and the things they named would serve whoever spoke. Four times I learned otherwise.' },
+  { who: 'The Master', text: 'It has the Scroll. Up there — in the storm over the pagoda. It means to read the Scroll\'s last line itself, and then there will be no "beneath". Only it.' },
+  { who: 'The Master', text: 'Climb. The pagoda hangs upside down in that place. Don\'t trust your feet.' },
+  { who: '', text: 'The veins fade from his face. He doesn\'t get up again.' },
+];
+
+export const BOSS_DEFEATED_4 = [
+  { who: '', text: 'The thing in the storm comes apart — not falling, but unravelling, like smoke in a sudden wind.' },
+  { who: '', text: 'Something falls out of it, end over end, trailing gold light. The Ancient Scroll.' },
+  { who: '', text: 'You catch it. The storm folds in on itself. The red goes out of the sky.' },
+  { who: '', text: 'And then there is only the sound of birds.' },
+];
+
+export const V_DAWN1 = [{ who: 'Kiyo', text: 'I slept. I actually slept. And when I woke up, my husband was snoring next to me like nothing happened. Thank you.' }];
+export const V_DAWN2 = [{ who: 'Little Ren', text: 'It stopped breathing. The dog stopped barking. Are you going to stay now?' }];
+export const V_DAWN3 = [
+  { who: 'Elder Haru', text: 'The mirror is cracked. The sky is blue. Our people are in their beds.' },
+  { who: 'Elder Haru', text: 'Put the Scroll back where it belongs. And this time, we will keep a better watch on it. All of us.' },
+];
+
+export const THE_SCROLL = [
+  { who: '', text: 'You lay the Ancient Scroll on its stand at the shrine, where it was kept for three hundred years.' },
+  { who: '', text: 'Four names, each struck through: the Balrog. The Beast of the Deep. The Thing from the Star. The Mind Flayer.' },
+  { who: '', text: 'At the bottom of the scroll, in fresh ink, a line has appeared that was never there before. It is your name — and beside it, the word "keeper".' },
+];
+
+export const CHAPTER_END_4 = {
+  title: 'The End',
+  sub: 'The Stolen Scroll',
+  next: 'Thank you for playing',
+};
+
+export const CREDITS = [
+  ['THE STOLEN SCROLL', 'title'],
+  ['', 'gap'],
+  ['Directed by', 'head'],
+  ['Karan Upamanyu', 'name'],
+  ['', 'gap'],
+  ['Built with', 'head'],
+  ['Claude', 'name'],
+  ['', 'gap'],
+  ['Starring', 'head'],
+  ['the ninja of Kagari', 'name'],
+  ['', 'gap'],
+  ['Featuring', 'head'],
+  ['Elder Haru · Kiyo · Little Ren · Gonta', 'name'],
+  ['the Ferryman · the Old Monk · the crew of the MSV Tethys', 'name'],
+  ['', 'gap'],
+  ['and the four names', 'head'],
+  ['the Balrog', 'name'],
+  ['the Beast of the Deep', 'name'],
+  ['the Thing from the Star', 'name'],
+  ['the Mind Flayer', 'name'],
+  ['', 'gap'],
+  ['Every picture drawn and every sound made by code.', 'small'],
+  ['', 'gap'],
+  ['Thank you for playing.', 'title'],
+];

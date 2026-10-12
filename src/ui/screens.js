@@ -17,6 +17,7 @@ export const CONTROLS = [
   ['Float', 'hold Jump in midair', 'float'],
   ['Wall jump', 'hold toward a wall, then Jump', 'wallJump'],
   ['Grapple', 'hold S near a ring', 'kaginawa'],
+  ['Shift worlds', 'A', 'mirror'],
   ['Pause · Mute', 'Esc  ·  M'],
 ];
 
@@ -309,6 +310,44 @@ export function drawChapterEnd(ctx, info, t, hasNext = false) {
   ctx.font = `15px ${FONT_BODY}`;
   ctx.fillStyle = '#f2e8d8';
   ctx.fillText(hasNext ? 'press Enter to continue the journey' : 'press Enter to return to the title', VIEW_W / 2, VIEW_H - 40);
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+}
+
+// The credits: names rising slowly over the dark, after the end.
+export function drawCredits(ctx, lines, t) {
+  ctx.fillStyle = '#050307';
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.textAlign = 'center';
+  const sizeOf = (kind) => (kind === 'title' ? 34 : kind === 'head' ? 15 : kind === 'small' ? 15 : 22);
+  const stepOf = (kind) => (kind === 'gap' ? 26 : sizeOf(kind) + 16);
+  // scroll up, and stop when the last line reaches the middle of the screen
+  const lastAt = lines.slice(0, -1).reduce((h, [, kind]) => h + stepOf(kind), 0);
+  let y = Math.max(VIEW_H + 40 - t * 34, VIEW_H / 2 - lastAt);
+  for (const [text, kind] of lines) {
+    const size = sizeOf(kind);
+    const step = stepOf(kind);
+    if (y > -40 && y < VIEW_H + 40 && text) {
+      const fade = clamp(Math.min((y + 20) / 120, (VIEW_H - y) / 120), 0, 1);
+      ctx.globalAlpha = fade;
+      if (kind === 'title') {
+        ctx.font = `700 ${size}px ${FONT_TITLE}`;
+        ctx.letterSpacing = '6px';
+        ctx.fillStyle = '#f4e8d6';
+      } else if (kind === 'head') {
+        ctx.font = `600 ${size}px ${FONT_TITLE}`;
+        ctx.letterSpacing = '4px';
+        ctx.fillStyle = '#e8b86a';
+      } else {
+        ctx.font = `${kind === 'small' ? 'italic ' : ''}${size}px ${FONT_BODY}`;
+        ctx.letterSpacing = '0px';
+        ctx.fillStyle = kind === 'small' ? 'rgba(244,232,214,0.6)' : '#f2e8d8';
+      }
+      ctx.fillText(kind === 'title' || kind === 'head' ? text.toUpperCase() : text, VIEW_W / 2, y);
+      ctx.letterSpacing = '0px';
+    }
+    y += step;
+  }
   ctx.globalAlpha = 1;
   ctx.textAlign = 'left';
 }

@@ -26,7 +26,7 @@ export function createDevPanel(game) {
   const pane = new Pane({ container, title: 'Tuning  ( ` to close )' });
 
   const abilities = pane.addFolder({ title: 'Abilities & debug', expanded: true });
-  for (const ab of ['doubleJump', 'dash', 'shadowStep', 'waterWalk', 'float', 'wallJump', 'kaginawa']) {
+  for (const ab of ['doubleJump', 'dash', 'shadowStep', 'waterWalk', 'float', 'wallJump', 'kaginawa', 'mirror']) {
     abilities.addBinding(game.player.abilities, ab).on('change', () => game.writeSave());
   }
   abilities.addBinding(game.debug, 'god', { label: 'god mode' });
@@ -37,11 +37,13 @@ export function createDevPanel(game) {
     1: [['start', 5, 24], ['pagoda', 84, 38], ['rooftops', 104, 18], ['boss lantern', 165, 30]],
     2: [['cliff', 5, 24], ['village', 110, 42], ['wreck cove', 126, 42], ['lighthouse', 168, 40], ['strait', 199, 41], ['tall stack', 229, 39], ['shrine', 270, 42]],
     3: [['pass', 6, 46], ['camp', 93, 44], ['temple', 143, 44], ['onsen', 270, 40], ['falls', 285, 44], ['slope', 332, 19], ['lifeboat', 372, 25], ['crater', 440, 43], ['tethys', 482, 43], ['mess', 512, 43], ['deck C', 530, 57], ['breach', 578, 57], ['derelict', 593, 57], ['pilot', 621, 57], ['eggs', 654, 31], ['nest', 695, 33]],
+    4: [['home', 5, 49], ['shrine', 182, 41], ['wood', 230, 45], ['pits', 278, 49], ['cliff', 330, 49], ['terraces', 385, 49], ['farm', 490, 49], ['courtyard', 538, 45], ['tower', 597, 45], ['storm', 632, 25], ['dawn', 704, 49]],
   };
   for (const [name, x, y] of WARPS[game.level.chapter] || []) abilities.addButton({ title: `Warp: ${name}` }).on('click', warp(x, y));
   abilities.addButton({ title: 'Go to chapter I' }).on('click', () => game.startChapter(1));
   abilities.addButton({ title: 'Go to chapter II' }).on('click', () => game.startChapter(2));
   abilities.addButton({ title: 'Go to chapter III' }).on('click', () => game.startChapter(3));
+  abilities.addButton({ title: 'Go to chapter IV' }).on('click', () => game.startChapter(4));
 
   for (const [title, rows] of GROUPS) {
     const f = pane.addFolder({ title, expanded: false });

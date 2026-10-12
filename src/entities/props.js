@@ -367,7 +367,7 @@ export class WoundedBinoshi {
 export class Relic {
   constructor(cx, floorY, look = 'plate') {
     Object.assign(this, { kind: 'relic', x: cx - 20, y: floorY - 50, w: 40, h: 50, cx, floorY, visible: false, look });
-    this.prompt = look === 'page' ? 'Read' : 'Examine';
+    this.prompt = look === 'page' || look === 'scroll' ? 'Read' : 'Examine';
   }
   update(dt, game) {
     if (!this.visible) return;
@@ -378,6 +378,22 @@ export class Relic {
     const t = game.time;
     const cx = this.cx;
     const y = this.floorY - 14 + Math.sin(t * 1.5) * 1;
+    if (this.look === 'scroll') {
+      // the Ancient Scroll, back on its stand at the shrine, glowing gold in the dawn
+      glow(ctx, cx, this.floorY - 26, 70, 'rgb(255,220,150)', 0.55 + Math.sin(t * 2) * 0.1);
+      ctx.fillStyle = '#3a2418';
+      ctx.fillRect(cx - 18, this.floorY - 12, 36, 4);
+      ctx.fillRect(cx - 14, this.floorY - 8, 3, 8);
+      ctx.fillRect(cx + 11, this.floorY - 8, 3, 8);
+      ctx.fillStyle = '#e8dcb8';
+      ctx.fillRect(cx - 14, this.floorY - 34, 28, 22);
+      ctx.fillStyle = '#7a2a1a';
+      ctx.fillRect(cx - 17, this.floorY - 36, 34, 4);
+      ctx.fillRect(cx - 17, this.floorY - 14, 34, 4);
+      ctx.fillStyle = 'rgba(40,20,20,0.7)';
+      for (let i = 0; i < 4; i++) ctx.fillRect(cx - 9 + i * 6, this.floorY - 31, 2, 15);
+      return;
+    }
     if (this.look === 'page') {
       // a single torn scroll page weighted under a stone, its ink glowing violet
       glow(ctx, cx, this.floorY - 10, 60, 'rgb(170,100,255)', 0.5 + Math.sin(t * 2) * 0.1);

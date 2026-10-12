@@ -2,13 +2,13 @@ import { TUNING as T, gravity, jumpVelocity, TILE } from '../config.js';
 import { approach, sign } from '../core/math.js';
 import { NinjaRig, POSES, STYLES, runPose, attackPose, SWING_ARCS } from '../render/ninjaRig.js';
 
-export const ABILITIES = ['doubleJump', 'dash', 'shadowStep', 'waterWalk', 'float', 'wallJump', 'kaginawa'];
+export const ABILITIES = ['doubleJump', 'dash', 'shadowStep', 'waterWalk', 'float', 'wallJump', 'kaginawa', 'mirror'];
 
 export class Player {
   constructor(x, feetY) {
     this.w = 18;
     this.h = 46;
-    this.abilities = { doubleJump: false, dash: false, waterWalk: false, float: false, wallJump: false, kaginawa: false, shadowStep: false };
+    this.abilities = { doubleJump: false, dash: false, waterWalk: false, float: false, wallJump: false, kaginawa: false, shadowStep: false, mirror: false };
     this.maxHearts = T.hearts;
     this.hearts = this.maxHearts;
     this.rig = new NinjaRig(STYLES.player);

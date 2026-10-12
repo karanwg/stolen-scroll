@@ -1,6 +1,7 @@
 import { VIEW_W, VIEW_H } from '../config.js';
 import { fbm1, mulberry32, noise1 } from '../core/math.js';
 import { houseSilhouette, pagodaSilhouette, roofPath, glow, makeCanvas, glowSprite } from './shapes.js';
+import { drawFlayer } from './flayerArt.js';
 
 // Painted night sky over a burning village, in parallax layers.
 // Layers are generated once into offscreen canvases and tiled horizontally.
@@ -35,6 +36,10 @@ export class Background {
       this.initShip(theme === 'nest');
       return;
     }
+    if (theme === 'kagari' || theme === 'upside' || theme === 'dawn') {
+      this.initKagari(theme);
+      return;
+    }
     this.layers = [
       this.makeLayer({ fx: 0.05, fy: 0.03, screenBase: 380, seed: 1, paint: paintMountains, fill: '#3a1520' }),
       this.makeLayer({ fx: 0.16, fy: 0.1, screenBase: 420, seed: 2, paint: paintCastleHills, fill: '#1a0c18' }),
@@ -60,6 +65,7 @@ export class Background {
     if (this.theme === 'derelict') return this.drawDerelict(ctx, camLeft, camTop, t);
     if (this.theme === 'crater') return this.drawCrater(ctx, camLeft, camTop, t);
     if (this.theme === 'ship' || this.theme === 'nest') return this.drawShip(ctx, camLeft, camTop, t);
+    if (this.theme === 'kagari' || this.theme === 'upside' || this.theme === 'dawn') return this.drawKagari(ctx, camLeft, camTop, t, weather);
     // Sky
     const lift = Math.max(0, Math.min(1, (REF_TOP - camTop) / 900));
     const sky = ctx.createLinearGradient(0, 0, 0, VIEW_H);
@@ -371,6 +377,125 @@ export class Background {
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     this.drawTiled(ctx, this.deep, camLeft, camTop, t);
     this.drawTiled(ctx, this.wall, camLeft, camTop, t);
+  }
+
+  // ── Chapter IV: Kagari, the Upside Down beneath it, and dawn ─
+  initKagari(kind) {
+    this.refTop = 1100;
+    this.kind = kind;
+    const ud = kind === 'upside';
+    const dawn = kind === 'dawn';
+    const far = ud ? '#0e1520' : dawn ? '#6a4a62' : '#1c0e1a';
+    const mid = ud ? '#0a1018' : dawn ? '#4a3048' : '#140912';
+    const near = ud ? '#070b11' : dawn ? '#30202e' : '#0d060c';
+    this.layers = [
+      this.makeLayer({ fx: 0.04, fy: 0.03, screenBase: 360, seed: 91, paint: (g, rnd, gl) => paintKagariRidge(g, rnd, far, ud ? 0 : 1), fill: far }),
+      this.makeLayer({ fx: 0.14, fy: 0.08, screenBase: 410, seed: 92, paint: (g, rnd, gl) => paintKagariCastle(g, rnd, gl, mid, ud, dawn), fill: mid }),
+      this.makeLayer({ fx: 0.32, fy: 0.18, screenBase: 470, seed: 93, paint: (g, rnd, gl) => paintKagariTown(g, rnd, gl, near, ud, dawn), fill: near }),
+    ];
+    const rnd = mulberry32(17);
+    this.stars = Array.from({ length: 110 }, () => ({ x: rnd() * VIEW_W, y: rnd() * 260, r: rnd() * 1.1 + 0.3, tw: rnd() * 6 }));
+    this.clouds = Array.from({ length: 12 }, (_, i) => ({ x: rnd() * 1600, y: 40 + rnd() * 170, w: 160 + rnd() * 260, h: 30 + rnd() * 40, v: 4 + rnd() * 8, seed: i }));
+  }
+
+  drawKagari(ctx, camLeft, camTop, t, weather) {
+    const kind = this.kind;
+    const ud = kind === 'upside';
+    const dawn = kind === 'dawn';
+    const dy = (camTop - this.refTop) * 0.02;
+    const sky = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+    if (ud) {
+      sky.addColorStop(0, '#04070c');
+      sky.addColorStop(0.55, '#0f1824');
+      sky.addColorStop(1, '#1a2533');
+    } else if (dawn) {
+      sky.addColorStop(0, '#2a2a5a');
+      sky.addColorStop(0.45, '#c8708a');
+      sky.addColorStop(0.75, '#f2a878');
+      sky.addColorStop(1, '#ffd6a0');
+    } else {
+      // the sky has been red for three nights
+      sky.addColorStop(0, '#07050d');
+      sky.addColorStop(0.45, '#22091a');
+      sky.addColorStop(0.8, '#5a1420');
+      sky.addColorStop(1, '#7a2420');
+    }
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    if (!dawn) {
+      for (const st of this.stars) {
+        ctx.globalAlpha = (0.3 + 0.3 * Math.sin(t * 1.3 + st.tw)) * (1 - st.y / 300) * (ud ? 0.4 : 1);
+        ctx.fillStyle = '#ffe9e0';
+        ctx.beginPath();
+        ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (dawn) {
+      // the sun coming up over the mountains
+      const sy = 360 - dy * 2;
+      glow(ctx, 640, sy, 420, 'rgb(255,200,140)', 0.6);
+      ctx.fillStyle = '#fff2d6';
+      ctx.beginPath();
+      ctx.arc(640, sy, 46, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (!ud) {
+      // a blood moon behind thin red cloud
+      const mx = 720 - ((camLeft * 0.012) % 200);
+      const my = 110 - dy * 2;
+      glow(ctx, mx, my, 200, 'rgb(255,90,70)', 0.35);
+      const mg = ctx.createRadialGradient(mx - 10, my - 12, 4, mx, my, 40);
+      mg.addColorStop(0, '#ffcab8');
+      mg.addColorStop(1, '#c0503e');
+      ctx.fillStyle = mg;
+      ctx.beginPath();
+      ctx.arc(mx, my, 40, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // the storm (Upside Down) or the red cloud (Kagari)
+    if (ud) {
+      // the thing in the storm, moving slowly behind the cloud
+      const fx = 520 + Math.sin(t * 0.05) * 160 - ((camLeft * 0.03) % 1200);
+      const flash = weather?.flash || 0;
+      // during the reveal it slides into view and leans closer
+      const pin = this.flayerPin || 0;
+      const X = (((fx % 1400) + 1400) % 1400 - 200) * (1 - pin) + 600 * pin;
+      const Y = 120 - dy * 3 - pin * 40;
+      this.flayerAt = { x: X, y: Y + 60, pin };
+      // the storm is lit from inside, so its shape stands out against it
+      glow(ctx, X, Y + 60, 520 + pin * 120, 'rgb(150,50,60)', 0.5 + pin * 0.45 + flash * 0.4);
+      glow(ctx, X - 200, Y + 140, 300, 'rgb(60,90,120)', 0.35);
+      drawFlayer(ctx, X, Y, 0.55 + pin * 0.2, t, { alpha: 0.85, glow: 0.25 + pin * 0.5 + flash * 0.75, colour: '#020408' });
+      // red lightning
+      if (weather?.bolt && flash > 0.2) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = `rgba(255,80,60,${flash})`;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        weather.bolt.forEach(([bx, by], i) => (i ? ctx.lineTo(bx, by * 300) : ctx.moveTo(bx, by * 300)));
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+    for (const c of this.clouds) {
+      const x = ((c.x + t * c.v - camLeft * 0.05) % 1700 + 1700) % 1700 - 300;
+      const g = ctx.createRadialGradient(x, c.y - dy, 4, x, c.y - dy, c.w * 0.6);
+      const col = ud ? (weather?.flash > 0 ? `rgba(120,30,40,${0.5 + weather.flash * 0.3})` : 'rgba(14,20,30,0.75)') : dawn ? 'rgba(255,190,190,0.35)' : 'rgba(110,20,30,0.35)';
+      g.addColorStop(0, col);
+      g.addColorStop(1, col.replace(/[\d.]+\)$/, '0)'));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.ellipse(x, c.y - dy, c.w * 0.6, c.h, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (const L of this.layers) this.drawLayer(ctx, L, camLeft, camTop, t);
+    const fog = ctx.createLinearGradient(0, VIEW_H * 0.55, 0, VIEW_H);
+    fog.addColorStop(0, 'rgba(0,0,0,0)');
+    fog.addColorStop(1, ud ? 'rgba(60,80,100,0.16)' : dawn ? 'rgba(255,210,200,0.15)' : 'rgba(120,40,50,0.14)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   }
 
   // A layer repeated in both directions (walls, not skylines).
@@ -881,6 +1006,99 @@ function paintConduits(g, rnd) {
     g.moveTo(-20, y);
     g.bezierCurveTo(LAYER_W * 0.3, y + (rnd() - 0.5) * 200, LAYER_W * 0.6, y + (rnd() - 0.5) * 200, LAYER_W + 20, y);
     g.stroke();
+  }
+}
+
+// ── Chapter IV painters ──────────────────────────────────────
+function paintKagariRidge(g, rnd, col) {
+  g.fillStyle = col;
+  g.beginPath();
+  g.moveTo(0, LAYER_H);
+  for (let x = 0; x <= LAYER_W; x += 12) {
+    const u = x / LAYER_W;
+    const n = fbm1(u * 5, 94) * (1 - u) + fbm1((u - 1) * 5, 94) * u;
+    g.lineTo(x, BASE - 140 - n * 120);
+  }
+  g.lineTo(LAYER_W, LAYER_H);
+  g.fill();
+}
+
+function paintKagariCastle(g, rnd, glows, col, ud, dawn) {
+  g.fillStyle = col;
+  g.beginPath();
+  g.moveTo(0, LAYER_H);
+  for (let x = 0; x <= LAYER_W; x += 10) g.lineTo(x, BASE - 60 - Math.sin(x * 0.006) * 30 - fbm1(x * 0.01, 95) * 30);
+  g.lineTo(LAYER_W, LAYER_H);
+  g.fill();
+  // the castle on its hill, and the pagoda you climbed
+  g.fillStyle = col;
+  pagodaSilhouette(g, 380, BASE - 80, 90, 3, 34);
+  pagodaSilhouette(g, 1080, BASE - 70, 70, 5, 30);
+  if (!ud) {
+    g.fillStyle = dawn ? 'rgba(255,220,180,0.35)' : 'rgba(255,180,110,0.55)';
+    g.fillRect(372, BASE - 128, 6, 5);
+    g.fillRect(388, BASE - 150, 5, 5);
+    glows.push({ x: 380, y: BASE - 130, r: 60, color: 'rgb(255,170,100)', a: dawn ? 0.15 : 0.35, seed: 3 });
+  }
+}
+
+function paintKagariTown(g, rnd, glows, col, ud, dawn) {
+  g.fillStyle = col;
+  g.fillRect(0, BASE - 10, LAYER_W, LAYER_H);
+  let x = -20;
+  let i = 0;
+  while (x < LAYER_W) {
+    const w = 90 + rnd() * 80;
+    const h = 40 + rnd() * 40;
+    const rise = 24 + rnd() * 18;
+    g.fillStyle = col;
+    houseSilhouette(g, x, BASE, w, h, rise);
+    if (ud) {
+      // the same house beneath: roof caved, vines over it
+      g.fillStyle = 'rgba(0,0,0,0.6)';
+      g.beginPath();
+      g.moveTo(x + w * 0.3, BASE - h - rise * 0.6);
+      g.lineTo(x + w * 0.45, BASE - h + 10);
+      g.lineTo(x + w * 0.6, BASE - h - rise * 0.4);
+      g.fill();
+      g.strokeStyle = 'rgba(20,30,40,0.9)';
+      g.lineWidth = 3;
+      for (let k = 0; k < 3; k++) {
+        g.beginPath();
+        g.moveTo(x + rnd() * w, BASE - h - rise * 0.5);
+        g.quadraticCurveTo(x + rnd() * w, BASE - h * 0.5, x + rnd() * w, BASE);
+        g.stroke();
+      }
+    } else if (rnd() < 0.6) {
+      g.fillStyle = dawn ? 'rgba(255,230,200,0.25)' : 'rgba(255,170,90,0.6)';
+      g.fillRect(x + w * (0.25 + rnd() * 0.4), BASE - h * 0.6, 10, 8);
+      if (!dawn) glows.push({ x: x + w / 2, y: BASE - h * 0.5, r: 60 + rnd() * 30, color: 'rgb(255,160,90)', a: 0.35, seed: i * 2.1 });
+    }
+    // a cherry tree between houses (bare and black, beneath)
+    if (rnd() < 0.45) {
+      const tx = x + w + 14;
+      g.fillStyle = col;
+      g.fillRect(tx - 3, BASE - 70, 6, 70);
+      if (ud) {
+        g.strokeStyle = col;
+        g.lineWidth = 2;
+        for (let k = 0; k < 5; k++) {
+          g.beginPath();
+          g.moveTo(tx, BASE - 60);
+          g.lineTo(tx + (rnd() - 0.5) * 60, BASE - 90 - rnd() * 40);
+          g.stroke();
+        }
+      } else {
+        g.fillStyle = dawn ? 'rgba(255,190,210,0.75)' : 'rgba(150,60,90,0.65)';
+        for (let k = 0; k < 6; k++) {
+          g.beginPath();
+          g.arc(tx + (rnd() - 0.5) * 60, BASE - 80 - rnd() * 40, 16 + rnd() * 12, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+    }
+    x += w + 26 + rnd() * 30;
+    i++;
   }
 }
 

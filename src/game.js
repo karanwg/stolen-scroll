@@ -6,11 +6,15 @@ import { clamp, overlaps, rand, sign } from './core/math.js';
 import { buildStage1 } from './world/stage1.js';
 import { buildStage2 } from './world/stage2.js';
 import { buildStage3 } from './world/stage3.js';
+import { buildStage4 } from './world/stage4.js';
 import { Player } from './entities/player.js';
 import { Blade, Thrower, EmberCrow } from './entities/enemies.js';
 import { Balrog } from './entities/balrog.js';
 import { Kraken } from './entities/kraken.js';
 import { Xenomorph, Suction } from './entities/xenomorph.js';
+import { Master } from './entities/master.js';
+import { MindFlayer } from './entities/mindflayer.js';
+import { Villager, Sleepwalker, Dog, Demodog, Flayed, VineBurst } from './entities/upside.js';
 import { Door, SteamJet, ArcGate, LockerScare, Corpse, Chestburster, Mist } from './entities/ship.js';
 import { Spearman, ShurikenThrower, YukiOnna, Icicle, WindZone, Bell, SnowMonkey } from './entities/snow.js';
 import { Egg, Facehugger, Drone } from './entities/alien.js';
@@ -29,7 +33,7 @@ import { WaterRenderer } from './render/water.js';
 import { NinjaRig } from './render/ninjaRig.js';
 import { Hud, drawPrompt, FONT_BODY } from './ui/hud.js';
 import { Dialogue } from './ui/dialogue.js';
-import { Menu, drawTitle, drawOpening, drawPause, drawAbilityCard, drawBossCard, drawDeath, drawChapterEnd } from './ui/screens.js';
+import { Menu, drawTitle, drawOpening, drawPause, drawAbilityCard, drawBossCard, drawDeath, drawChapterEnd, drawCredits } from './ui/screens.js';
 import * as STORY from './data/story.js';
 
 const SAVE_KEY = 'stolen-scroll.save.v1';
@@ -39,10 +43,11 @@ const CHAPTERS = {
   1: { build: buildStage1, opening: STORY.OPENING, title: 'Chapter I — Kagari Village', end: STORY.CHAPTER_END, bossDefeated: STORY.BOSS_DEFEATED, accent: 'rgb(255,90,40)', requires: [] },
   2: { build: buildStage2, opening: STORY.OPENING_2, title: 'Chapter II — The Drowned Coast', end: STORY.CHAPTER_END_2, bossDefeated: STORY.BOSS_DEFEATED_2, relic: STORY.RELIC, accent: 'rgb(90,170,255)', requires: ['doubleJump', 'dash'] },
   3: { build: buildStage3, opening: STORY.OPENING_3, title: 'Chapter III — The Fallen Star', end: STORY.CHAPTER_END_3, bossDefeated: STORY.BOSS_DEFEATED_3, relic: STORY.LAST_PAGE, accent: 'rgb(130,255,190)', requires: ['doubleJump', 'dash', 'waterWalk', 'float'] },
+  4: { build: buildStage4, opening: STORY.OPENING_4, title: 'Chapter IV — The Upside Down', end: STORY.CHAPTER_END_4, bossDefeated: STORY.BOSS_DEFEATED_4, relic: STORY.THE_SCROLL, accent: 'rgb(255,90,80)', requires: ['doubleJump', 'dash', 'waterWalk', 'float', 'wallJump', 'kaginawa', 'shadowStep'] },
 };
-const LAST_CHAPTER = 3;
+const LAST_CHAPTER = 4;
 
-const freshStage = () => ({ lantern: null, lit: [], notesRead: [], talked: [], bossDefeated: false, broken: [], zonesSeen: [], bells: [], gauntlets: [], scares: [], powerOut: false });
+const freshStage = () => ({ lantern: null, lit: [], notesRead: [], talked: [], bossDefeated: false, broken: [], zonesSeen: [], bells: [], gauntlets: [], scares: [], powerOut: false, bossesDone: [] });
 
 // Input stand-in used while the player isn't in control.
 const NO_INPUT = { held: () => false, pressed: () => false, released: () => false, axisX: () => 0 };
@@ -117,9 +122,12 @@ export class Game {
   buildRenderers() {
     this.backgrounds = {};
     this.background = this.backgroundFor(this.theme);
-    this.terrain = new TerrainRenderer(this.level, this.scale);
+    const L = this.level;
+    this.terrain = new TerrainRenderer(L.hasUD ? L.view('real') : L, this.scale);
+    this.terrainUD = L.hasUD ? new TerrainRenderer(L.view('ud'), this.scale) : null;
     this.decos = new DecoLayer(this.level, this.scale);
-    this.water = new WaterRenderer(this.level);
+    this.water = new WaterRenderer(L.hasUD ? L.view('real') : L);
+    this.waterUD = L.hasUD ? new WaterRenderer(L.view('ud')) : null;
   }
 
   applyThemeAudio() {
@@ -191,6 +199,10 @@ export class Game {
     this.boss = null;
     this.bossActive = false;
     this.bossSpawn = null;
+    this.bossDefs = []; // Chapter IV has two bosses, met in order
+    this.bossTriggers = {};
+    this.pendingFirstShift = false;
+    this.stage.bossesDone ||= [];
     this.bossTriggerX = Infinity;
     this.chapterEndX = null;
     this.relic = null;
@@ -207,11 +219,23 @@ export class Game {
           break;
         case 'lantern': {
           const l = new Lantern(e.x, e.y, e.id);
+          l.layer = e.layer;
           l.lit = this.stage.lit.includes(e.id);
           this.lanterns[e.id] = l;
           this.props.push(l);
           break;
         }
+        case 'villager': {
+          const v = new Villager(e.x, e.y, e.id, e.look);
+          v.layer = e.layer;
+          v.talked = this.stage.talked.includes(e.id);
+          this.props.push(v);
+          break;
+        }
+        case 'master':
+        case 'flayer':
+          this.bossDefs.push(e);
+          break;
         case 'elder':
         case 'ferryman':
         case 'binoshi':
@@ -219,6 +243,7 @@ export class Game {
         case 'cocooned': {
           const C = { elder: Elder, ferryman: Ferryman, binoshi: WoundedBinoshi, monk: Monk, cocooned: CocoonNPC }[e.type];
           const npc = new C(e.x, e.y);
+          npc.layer = e.layer;
           npc.talked = this.stage.talked.includes(npc.id);
           if (npc.id === 'cocooned') npc.burst = npc.talked;
           this.props.push(npc);
@@ -226,15 +251,17 @@ export class Game {
         }
         case 'note': {
           const n = new Note(e.x, e.y, e.id, e.look);
+          n.layer = e.layer;
           n.read = this.stage.notesRead.includes(e.id);
           this.props.push(n);
           break;
         }
         case 'pickup':
-          if (!this.save.abilities[e.ability]) this.props.push(new Pickup(e.x, e.y, e.ability));
+          if (!this.save.abilities[e.ability]) this.props.push(Object.assign(new Pickup(e.x, e.y, e.ability), { layer: e.layer }));
           break;
         case 'relic':
           this.relic = new Relic(e.x, e.y, e.look);
+          this.relic.layer = e.layer;
           this.relic.visible = this.stage.bossDefeated;
           this.props.push(this.relic);
           break;
@@ -279,10 +306,11 @@ export class Game {
           this.bossSpawn = e;
           break;
         case 'anchor':
-          this.anchors.push({ x: e.x, y: e.y + (e.dy ?? 16), kind: e.kind || 'ring' });
+          this.anchors.push({ x: e.x, y: e.y + (e.dy ?? 16), kind: e.kind || 'ring', layer: e.layer });
           break;
         case 'bossTrigger':
-          this.bossTriggerX = e.x;
+          if (e.for) this.bossTriggers[e.for] = e.x;
+          else this.bossTriggerX = e.x;
           break;
         case 'chapterEnd':
           this.chapterEndX = e.x;
@@ -292,6 +320,7 @@ export class Game {
       }
     }
     this.level.platforms = this.platforms;
+    for (const id of this.stage.bossesDone || []) this.openGates4(id);
     this.startPos = start;
     this.player = new Player(start.x, start.y);
     Object.assign(this.player.abilities, this.save.abilities);
@@ -299,6 +328,7 @@ export class Game {
     this.spawnBoss();
     const lantern = this.stage.lantern && this.lanterns[this.stage.lantern];
     if (lantern) this.player.place(lantern.cx - 26, lantern.floorY);
+    if (this.level.chapter === 4 && this.stage.bossDefeated && this.level.ending) this.player.place(this.level.ending.x, this.level.ending.y);
     // Resuming past an ability shrine you never stood at (an older save): you have it anyway.
     if (lantern) {
       for (const pr of this.props.filter((x) => x.kind === 'pickup' && x.cx < lantern.cx)) {
@@ -389,6 +419,21 @@ export class Game {
         case 'drone':
           this.enemies.push(new Drone(e.x, e.y));
           break;
+        case 'sleepwalker':
+          this.enemies.push(new Sleepwalker(e.x, e.y, e.toX * TILE + 16, e.delay || 0, e.face || 1));
+          break;
+        case 'dog':
+          this.enemies.push(new Dog(e.x, e.y, e.facing || 1));
+          break;
+        case 'demodog':
+          this.enemies.push(new Demodog(e.x, e.y));
+          break;
+        case 'flayed':
+          this.enemies.push(new Flayed(e.x, e.y, e.look));
+          break;
+        case 'vineBurst':
+          this.enemies.push(new VineBurst(e.x, e.y, { period: e.period, offset: e.offset }));
+          break;
         case 'steamJet':
           this.enemies.push(new SteamJet(e.x, e.y, { dir: e.dir, len: e.len, period: e.period, offset: e.offset }));
           break;
@@ -403,15 +448,29 @@ export class Game {
           break;
         }
       }
-      for (let k = before; k < this.enemies.length; k++) this.enemies[k].spawnIdx = idx;
+      for (let k = before; k < this.enemies.length; k++) {
+        this.enemies[k].spawnIdx = idx;
+        this.enemies[k].layer ??= e.layer;
+      }
     });
   }
 
   spawnBoss() {
     this.boss = null;
     this.bossActive = false;
+    if (this.bossDefs?.length) {
+      // the next boss you haven't beaten, with its own arena and trigger
+      const done = this.stage.bossesDone || [];
+      this.bossSpawn = this.bossDefs.find((d) => !done.includes(d.type)) || null;
+      if (this.bossSpawn) {
+        this.level.arena = this.level.arenas[this.bossSpawn.type];
+        this.bossTriggerX = this.bossTriggers[this.bossSpawn.type];
+      }
+    }
     if (this.stage.bossDefeated || !this.bossSpawn) return;
     const e = this.bossSpawn;
+    if (e.type === 'master') this.boss = new Master(e.x, e.y, this.level.arena);
+    else if (e.type === 'flayer') this.boss = new MindFlayer(e.x, e.y, this.level.arena);
     if (e.type === 'balrog') this.boss = new Balrog(e.x, e.y);
     else if (e.type === 'kraken') {
       const steps = this.platforms.filter((p) => p.mode === 'step');
@@ -533,11 +592,22 @@ export class Game {
         return;
       case 'card':
         this.particles.update(dt);
-        if (this.modeT > 1 && (inp.pressed('jump') || inp.pressed('confirm') || inp.pressed('attack') || inp.clicked)) this.setMode('play');
+        if (this.modeT > 1 && (inp.pressed('jump') || inp.pressed('confirm') || inp.pressed('attack') || inp.clicked)) {
+          this.setMode('play');
+          if (this.pendingFirstShift) this.firstShift();
+        }
         return;
       case 'chapterEnd':
         this.particles.update(dt);
-        if (this.modeT > 4 && (inp.pressed('confirm') || inp.pressed('jump') || inp.clicked)) this.advanceChapter();
+        if (this.modeT > 4 && (inp.pressed('confirm') || inp.pressed('jump') || inp.clicked)) {
+          if (this.level.chapter === LAST_CHAPTER) {
+            this.setMode('credits');
+            this.audio.setMusic('victory');
+          } else this.advanceChapter();
+        }
+        return;
+      case 'credits':
+        if ((this.modeT > 3 && (inp.pressed('confirm') || inp.pressed('pause') || inp.clicked)) || this.modeT > 40) this.advanceChapter();
         return;
     }
 
@@ -573,6 +643,10 @@ export class Game {
 
     p.hookTarget = p.abilities.kaginawa && !p.hook ? this.findHookTarget(p) : null;
     const playerInput = p.state === 'cutscene' || this.respawning ? NO_INPUT : inp;
+    if (playerInput.pressed('shift')) this.tryShift();
+    this.shiftCool = Math.max(0, (this.shiftCool || 0) - dt);
+    this.shiftFx = Math.max(0, (this.shiftFx || 0) - dt);
+    this.shiftFail = Math.max(0, (this.shiftFail || 0) - dt);
     p.step(dt, playerInput, this.level);
     if (p.sprinting && p.grounded && Math.random() < 0.5) {
       this.particles.add({ x: p.cx - p.facing * 8, y: p.feetY - 2, vx: -p.vx * 0.15, vy: rand(-60, -20), kind: 'smoke', size: 2, grow: 10, color: this.theme.dust, life: 0.35 });
@@ -587,7 +661,8 @@ export class Game {
       if (Math.random() < 0.15) this.particles.add({ x: p.cx, y: p.feetY + 1, kind: 'ring', size: 4, grow: 50, color: 'rgba(200,230,255,0.4)', life: 0.5 });
     }
 
-    for (const e of this.enemies) e.update(dt, this);
+    for (const e of this.enemies) if (this.onLayer(e)) e.update(dt, this);
+    this.updateUpsideDown(dt);
     this.enemies = this.enemies.filter((e) => !e.dead);
     if (this.boss && (this.bossActive || ['dying', 'falling'].includes(this.boss.state))) this.boss.update(dt, this);
     // Phase three: keep the door (and what's going out of it) in frame.
@@ -597,7 +672,10 @@ export class Game {
       this.camera.lock = { x0: a.x0, x1: a.x1 + 260, y0: a.y0, y1: a.y1 };
       this.camera.focus = { x: clamp((p.cx + xb.cx) / 2 + 120, a.x0 + 480, a.x1 - 220), y: a.floorY - 230, rate: 3 };
     }
-    for (const pr of this.projectiles) pr.update(dt, this);
+    for (const pr of this.projectiles) {
+      pr.layer ??= this.level.layer;
+      if (this.onLayer(pr)) pr.update(dt, this);
+    }
     this.projectiles = this.projectiles.filter((pr) => !pr.dead);
     for (const s of this.slashes) s.update(dt);
     this.slashes = this.slashes.filter((s) => !s.dead);
@@ -611,6 +689,17 @@ export class Game {
       if (this.passBehind.t > this.passBehind.dur) this.passBehind = null;
     }
     this.tilt += (this.tiltTarget - this.tilt) * Math.min(1, dt * 1.5);
+    // the world turns over when you climb into an inverted region
+    const flipped = (this.level.flips || []).some((f) => p.cx > f.x0 && p.cx < f.x1);
+    const fk = this.flipK ?? 1;
+    const target = flipped ? -1 : 1;
+    if (fk !== target) {
+      this.flipK = target > fk ? Math.min(target, fk + dt * 2.4) : Math.max(target, fk - dt * 2.4);
+      if (Math.sign(fk) !== Math.sign(this.flipK) && this.flipK !== 0) {
+        this.audio.play('shiftIn');
+        this.camera.shake(0.4);
+      }
+    }
 
     this.resolveCombat();
     this.updateInteractions(inp);
@@ -682,8 +771,8 @@ export class Game {
       this.particles.update(dt);
       this.camera.time += dt;
       const ch = this.level.chapter;
-      this.camera.x = (ch === 3 ? 7600 : ch === 2 ? 5600 : 3000) + Math.sin(this.time * 0.05) * 600;
-      this.camera.y = ch === 3 ? 1150 : ch === 2 ? 1250 : 980;
+      this.camera.x = (ch === 4 ? 2000 : ch === 3 ? 7600 : ch === 2 ? 5600 : 3000) + Math.sin(this.time * 0.05) * 600;
+      this.camera.y = ch === 4 ? 1400 : ch === 3 ? 1150 : ch === 2 ? 1250 : 980;
       this.camera.clampTo(this.level.camBounds);
     }
   }
@@ -1025,6 +1114,16 @@ export class Game {
           this.audio.play('hiss');
           this.markScare(`passBehind@${sc.x}`);
           break;
+        case 'sleepersTurn':
+          // every sleepwalker at the shrine turns to look at you, at once
+          for (const e of this.enemies) if (e instanceof Sleepwalker) {
+            e.turning = true;
+            e.turnTo = sign(p.cx - e.cx) || -1;
+          }
+          this.audio.play('sting');
+          this.camera.shake(0.3);
+          this.markScare(`sleepersTurn@${sc.x}`);
+          break;
         case 'power':
           // the lights in the mess stutter, and die
           this.powerFail();
@@ -1052,11 +1151,23 @@ export class Game {
     for (const b of this.decos.blackout) b.t -= dt;
     this.decos.blackout = this.decos.blackout.filter((b) => b.t > 0);
     if (this.lightsOutT > 0) this.lightsOutT -= dt;
+    const pinTo = this.revealT > 0 && this.level.layer === 'ud' ? 1 : 0;
+    this.background.flayerPin = (this.background.flayerPin || 0) + (pinTo - (this.background.flayerPin || 0)) * Math.min(1, dt * (pinTo ? 2.2 : 0.5));
     if (this.revealT > 0) {
+      const was = this.revealT;
       this.revealT -= dt;
+      // a second strike lights it up from behind, the moment you can see it
+      if (this.hintShiftT && was > 1.9 && this.revealT <= 1.9) {
+        this.weather.strike?.(undefined, 1);
+        this.audio.play('flayerGroan');
+      }
       if (this.revealT <= 0) {
         this.camera.focus = null;
         if (p.state === 'cutscene') p.state = 'normal';
+        if (this.hintShiftT) {
+          this.hud.showToast('A  —  shift back', 2.6);
+          this.hintShiftT = 0;
+        }
       }
     }
     for (const sh of this.shadows) {
@@ -1064,6 +1175,73 @@ export class Game {
       sh.life -= dt;
     }
     this.shadows = this.shadows.filter((sh) => sh.life > 0);
+  }
+
+  // ── Chapter IV: two worlds ──────────────────────────────────
+  // The mirror shows you what's behind the world — and pulls you through.
+  firstShift() {
+    this.pendingFirstShift = false;
+    const p = this.player;
+    this.tryShift(true);
+    this.shiftFx = 0.8;
+    this.audio.play('sting');
+    this.audio.play('flayerRoar');
+    this.camera.shake(0.9);
+    // look up: it's in the sky
+    p.state = 'cutscene';
+    p.vx = 0;
+    this.camera.focus = { x: p.cx + 120, y: p.cy - 260, rate: 1.4 };
+    this.revealT = 3.6;
+    this.weather.strike?.(undefined, 1);
+    this.hintShiftT = 9;
+  }
+
+  // Is this thing in the world you're in? (Everything is, outside Chapter IV.)
+  onLayer(o) {
+    return !this.level.hasUD || !o.layer || o.layer === 'both' || o.layer === this.level.layer;
+  }
+
+  // A: step through to the other side — unless something solid is there.
+  tryShift(forced = false) {
+    const p = this.player;
+    const L = this.level;
+    if (!L.hasUD || (!forced && (!p.abilities.mirror || this.shiftCool > 0 || p.state !== 'normal' || this.noShift))) return false;
+    const target = L.layer === 'real' ? 'ud' : 'real';
+    if (L.boxBlockedIn(target, p.x + 2, p.y + 2, p.w - 4, p.h - 4)) {
+      this.shiftFail = 0.45;
+      this.audio.play('shiftFail');
+      return false;
+    }
+    L.layer = target;
+    this.decos.layer = target;
+    p.hook = null;
+    this.shiftCool = 0.45;
+    this.shiftFx = 0.4;
+    this.audio.play(target === 'ud' ? 'shiftIn' : 'shiftOut');
+    this.camera.shake(0.15);
+    this.particles.burst(p.cx, p.cy, 22, { kind: 'shard', color: target === 'ud' ? 'rgba(160,200,230,0.9)' : 'rgba(255,170,150,0.9)', size: 3, speed: 260, life: 0.5, vrot: 8 });
+    this.switchTheme(L.themeAt(this.camera.x));
+    this.bgFade = Math.min(this.bgFade, 0.5);
+    return true;
+  }
+
+  // The Upside Down wears on you: stay too long and it throws you out, hurt.
+  updateUpsideDown(dt) {
+    const L = this.level;
+    if (!L.hasUD) return;
+    const limit = this.bossActive ? 16 : 11;
+    if (L.layer === 'ud' && this.player.state === 'normal') this.udT = (this.udT || 0) + dt;
+    else this.udT = Math.max(0, (this.udT || 0) - dt * 2);
+    this.udLimit = limit;
+    if (this.udT >= limit) {
+      const p = this.player;
+      p.invuln = 0;
+      p.hurt(p.cx);
+      this.handlePlayerEvents();
+      this.tryShift(true);
+      this.udT = limit * 0.5;
+      this.hud.showToast('the Upside Down won\'t let you stay', 1.8);
+    }
   }
 
   // The blast door between the shaft and the bay: shut while the fight is on.
@@ -1130,6 +1308,7 @@ export class Game {
     let best = null;
     let bestScore = Infinity;
     for (const a of this.anchors) {
+      if (!this.onLayer(a)) continue;
       const dx = a.x - p.cx;
       const dy = a.y - p.cy;
       const d = Math.hypot(dx, dy);
@@ -1161,6 +1340,7 @@ export class Game {
   drawAnchors(ctx) {
     const t = this.time;
     for (const a of this.anchors) {
+      if (!this.onLayer(a)) continue;
       if (a.kind === 'rib') {
         // a hooked bone spur jutting from the hull
         ctx.strokeStyle = '#2a3330';
@@ -1253,7 +1433,7 @@ export class Game {
 
   // Everything the sword can connect with this frame.
   swordTargets() {
-    const targets = [...this.enemies];
+    const targets = this.enemies.filter((e) => this.onLayer(e));
     if (this.boss && this.bossActive) {
       if (this.boss.parts) targets.push(...this.boss.parts);
       else targets.push(this.boss);
@@ -1318,7 +1498,7 @@ export class Game {
     }
     // Enemy bodies and attacks
     for (const e of this.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || !this.onLayer(e)) continue;
       if (e.unkillable && p.pogoGraceT > 0) continue;
       const atk = e.attackBox?.();
       const touched = e.touches ? e.touches(pbox) : (e.contact && overlaps(pbox, e)) || (atk && overlaps(pbox, atk));
@@ -1336,7 +1516,7 @@ export class Game {
       }
     }
     for (const pr of this.projectiles) {
-      if (pr.dead || pr.harmless) continue;
+      if (pr.dead || pr.harmless || !this.onLayer(pr)) continue;
       if (overlaps(pbox, pr)) {
         p.hurt(pr.x + pr.w / 2);
         if (pr.deflectable) pr.dead = true;
@@ -1355,6 +1535,7 @@ export class Game {
     this.nearProp = null;
     if (p.state !== 'normal' || !p.grounded) return;
     for (const pr of this.props) {
+      if (!this.onLayer(pr)) continue;
       if (pr.kind === 'pickup') {
         if (overlaps(p, pr)) this.collect(pr);
         continue;
@@ -1426,6 +1607,7 @@ export class Game {
     this.particles.burst(x, y - 46, 40, { color: 'rgb(200,230,255)', additive: true, speed: 260, life: 1, size: 2.5, drag: 2 });
     this.cardAbility = ability;
     this.setMode('card');
+    if (ability === 'mirror') this.pendingFirstShift = true;
   }
 
   updateTriggers(dt) {
@@ -1494,6 +1676,14 @@ export class Game {
     this.audio.setMusic('none');
     this.camera.shake(1);
     this.hitstop(0.25);
+    if (this.bossSpawn?.type === 'master') {
+      // a mid-chapter boss: remember him, and carry on
+      this.stage.bossesDone.push('master');
+      this.writeSave();
+      this.projectiles = [];
+      this.bossOutroT = 2.8;
+      return;
+    }
     this.stage.bossDefeated = true;
     this.writeSave();
     this.projectiles = [];
@@ -1526,6 +1716,8 @@ export class Game {
   }
 
   finishBoss() {
+    if (this.bossSpawn?.type === 'master') return this.finishMaster();
+    if (this.level.chapter === 4) return this.finishFlayer();
     this.bossActive = false;
     this.camera.lock = null;
     this.camera.focus = null;
@@ -1535,6 +1727,56 @@ export class Game {
     this.audio.play('gate');
     this.audio.setAmbience(1);
     this.dialogue.show(this.chapterInfo.bossDefeated, () => this.audio.setMusic('victory'));
+  }
+
+  // ── Chapter IV's two endings ───────────────────────────────
+  openGates4(id) {
+    for (const [x, y] of this.level.gates4?.[id] || []) {
+      this.level.setTileIn('real', x, y, '.');
+      this.level.setTileIn('ud', x, y, '.');
+    }
+  }
+
+  finishMaster() {
+    this.bossActive = false;
+    this.camera.lock = null;
+    this.camera.focus = null;
+    this.openGates4('master');
+    this.audio.play('gate');
+    this.dialogue.show(STORY.MASTER_DEFEATED, () => {
+      this.spawnBoss(); // the next one is waiting in the storm
+      this.applyThemeAudio();
+    });
+  }
+
+  // The storm comes apart; you wake at the shrine at dawn.
+  finishFlayer() {
+    this.bossActive = false;
+    this.camera.lock = null;
+    this.camera.focus = null;
+    this.dialogue.show(STORY.BOSS_DEFEATED_4, () => this.toDawn());
+  }
+
+  toDawn() {
+    const p = this.player;
+    const L = this.level;
+    L.layer = 'real';
+    this.decos.layer = 'real';
+    this.udT = 0;
+    p.place(L.ending.x, L.ending.y);
+    p.state = 'rest';
+    p.hearts = p.maxHearts;
+    this.flipK = 1;
+    this.tiltTarget = 0;
+    this.camera.snap(p.cx, p.cy, L.camBounds);
+    this.switchTheme(L.themeAt(this.camera.x), true);
+    this.prevBackground = null;
+    this.bgFade = 0;
+    if (this.relic) this.relic.visible = true;
+    this.fadeIn = 1.6;
+    this.audio.setMusic('victory');
+    this.audio.setAmbienceType('night');
+    this.writeSave();
   }
 
   endChapter() {
@@ -1671,6 +1913,7 @@ export class Game {
     if (this.mode === 'card') drawAbilityCard(ctx, this.cardAbility, this.modeT);
     if (this.mode === 'paused') drawPause(ctx, this.pauseMenu, this.time, this.showControls, this.player.abilities);
     if (this.mode === 'chapterEnd') drawChapterEnd(ctx, this.chapterInfo.end, this.modeT, this.level.chapter < LAST_CHAPTER);
+    if (this.mode === 'credits') drawCredits(ctx, STORY.CREDITS, this.modeT);
   }
 
   renderWorld(ctx) {
@@ -1682,11 +1925,13 @@ export class Game {
     const t = this.time;
     // When the Tethys lurches, the whole view tilts (scaled up a touch so no corner shows).
     const tilt = this.tilt;
+    const flip = this.flipK ?? 1; // -1: the world has turned over (Chapter IV's inverted pagoda)
     let base = null;
-    if (Math.abs(tilt) > 0.001) {
+    if (Math.abs(tilt) > 0.001 || flip < 0.999) {
       const cw = this.canvas.width / 2;
       const ch = this.canvas.height / 2;
-      base = new DOMMatrix().translate(cw, ch).rotate((tilt * 180) / Math.PI).scale(1 + Math.abs(tilt) * 1.9).translate(-cw, -ch);
+      const k = 1 + Math.abs(tilt) * 1.9;
+      base = new DOMMatrix().translate(cw, ch).rotate((tilt * 180) / Math.PI).scale(k, k * flip).translate(-cw, -ch);
     }
     const setT = (c, a, b, cc, d, e, f) => (base ? c.setTransform(base.multiply(new DOMMatrix([a, b, cc, d, e, f]))) : c.setTransform(a, b, cc, d, e, f));
     const state = { powerOut: this.stage.powerOut };
@@ -1722,23 +1967,40 @@ export class Game {
       drawXeno(w, sh.x, sh.y, -1, { walk: this.time * 14, moving: 1, flash: 0, tail: this.time * 4 }, 1.1);
       w.restore();
     }
-    this.terrain.draw(w, left, top, VIEW_W, VIEW_H);
+    const ud = this.level.hasUD && this.level.layer === 'ud';
+    if (this.level.hasUD && this.player.abilities.mirror) {
+      // the other world, faintly: where its ground is, so you can plan a shift
+      w.save();
+      w.globalAlpha = 0.17;
+      (ud ? this.terrain : this.terrainUD).draw(w, left, top, VIEW_W, VIEW_H);
+      w.restore();
+    }
+    (ud ? this.terrainUD : this.terrain).draw(w, left, top, VIEW_W, VIEW_H);
     for (const d of this.doors) if (d.x > view.x0 - 80 && d.x < view.x1 + 80) d.draw(w);
     this.drawTracks(w, view);
     this.decos.drawFires(w, view, t, 'tiles');
     this.drawHints(w);
 
-    for (const pr of this.props) pr.draw(w, this);
+    for (const pr of this.props) if (this.onLayer(pr)) pr.draw(w, this);
     if (this.boss && (this.bossActive || ['dying', 'falling', 'dormant'].includes(this.boss.state)) && !this.boss.dead) this.boss.draw(w, this);
     for (const g of this.geysers) g.draw(w, this);
     for (const pl of this.platforms) pl.draw(w, this);
     this.drawAnchors(w);
-    for (const e of this.enemies) e.draw(w, this);
+    for (const e of this.enemies) {
+      if (this.onLayer(e)) e.draw(w, this);
+      else if (this.player.abilities.mirror) {
+        // things in the other world show as faint shapes
+        w.save();
+        w.globalAlpha = 0.14;
+        e.draw(w, this);
+        w.restore();
+      }
+    }
     for (const a of this.actors) a.draw(w, this);
     this.drawRope(w);
     if (!(this.player.state === 'dead' && this.deathT > 0.25)) this.player.draw(w);
     for (const pr of this.projectiles) pr.draw(w, this);
-    this.water.draw(w, view, t);
+    (ud ? this.waterUD : this.water).draw(w, view, t);
     this.particles.draw(w, view);
     for (const m of this.mists) m.draw(w, view);
     if (this.debug.hitboxes) this.drawHitboxes(w);
@@ -1749,8 +2011,8 @@ export class Game {
       const pr0 = (this.theme.playerLightR || 250) * (this.lightsOutT > 0 ? 0.55 : 1);
       lights.push({ x: p.cx, y: p.cy - 10, r: pr0, color: this.theme.playerLight, i: 0.95 });
       this.decos.collectLights(view, lights, t, state);
-      for (const pr of this.props) pr.light?.(lights);
-      for (const e of this.enemies) e.light?.(lights);
+      for (const pr of this.props) if (this.onLayer(pr)) pr.light?.(lights);
+      for (const e of this.enemies) if (this.onLayer(e)) e.light?.(lights);
       for (const d of this.doors) d.light(lights);
       const ar = this.level.arena;
       if (this.level.chapter === 3 && ar && this.level.tileAt(ar.door.x0, ar.door.y1) !== 'D' && view.x1 > ar.x1 - 600) {
@@ -1760,8 +2022,11 @@ export class Game {
       for (const pl of this.platforms) pl.light?.(lights);
       if (this.boss && !this.boss.dead && this.boss.state !== 'dormant') this.boss.light(lights);
       for (const pr of this.projectiles) pr.light?.(lights);
+      // the storm in the Upside Down is lit from inside, so the thing in it shows
+      const fa = ud && this.background.flayerAt;
+      if (fa) lights.push({ x: left + fa.x, y: top + fa.y, r: 520 + fa.pin * 200, color: 'rgb(200,80,90)', i: 0.45 + fa.pin * 0.75 });
       const amb = state.powerOut && this.theme.ambientDark ? this.theme.ambientDark : this.theme.ambient;
-      this.lighting.ambient = this.weather.flash > 0 ? mixAmbient(amb, this.weather.flash) : amb;
+      this.lighting.ambient = this.weather.flash > 0 ? mixAmbient(amb, this.weather.flash, this.weather.red) : amb;
       this.lighting.render(lights, left, top);
     }
 
@@ -1784,6 +2049,59 @@ export class Game {
       drawPrompt(ctx, pr.cx, pr.floorY - (pr.kind === 'lantern' ? 116 : 76), pr.prompt, t);
     }
     ctx.setTransform(S, 0, 0, S, 0, 0);
+  }
+
+  // Chapter IV's screen effects: the Upside Down closing in, and the tear when you shift.
+  renderShiftFx(ctx) {
+    if (!this.level.hasUD) return;
+    const S = this.scale;
+    // ash and cold creeping in from the edges the longer you stay
+    if (this.udT > 0 && this.udLimit) {
+      const k = Math.min(1, this.udT / this.udLimit);
+      if (k > 0.35) {
+        const a = (k - 0.35) / 0.65;
+        const g = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * (0.5 - a * 0.25), VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.7);
+        g.addColorStop(0, 'rgba(20,30,40,0)');
+        g.addColorStop(1, `rgba(10,16,24,${0.85 * a})`);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        if (a > 0.6 && Math.sin(this.time * 8) > 0.6) {
+          ctx.fillStyle = `rgba(150,30,40,${0.12 * a})`;
+          ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        }
+      }
+    }
+    // the tear: strips of the frame slide apart, then settle
+    if (this.shiftFx > 0) {
+      const k = this.shiftFx / 0.4;
+      const c = this.canvas;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const strips = 14;
+      const sh = c.height / strips;
+      for (let i = 0; i < strips; i++) {
+        const off = Math.sin(i * 12.9898 + this.time * 40) * 26 * k * S;
+        ctx.drawImage(c, 0, i * sh, c.width, sh, off, i * sh, c.width, sh);
+      }
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = this.level.layer === 'ud' ? `rgba(90,140,200,${0.35 * k})` : `rgba(255,120,110,${0.3 * k})`;
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.restore();
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+    }
+    // a blocked shift: your outline, red, where you can't go
+    if (this.shiftFail > 0) {
+      const p = this.player;
+      ctx.save();
+      ctx.setTransform(S, 0, 0, S, -this.camera.left * S, -this.camera.top * S);
+      ctx.globalAlpha = this.shiftFail / 0.45;
+      ctx.strokeStyle = 'rgb(255,70,70)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 4]);
+      ctx.strokeRect(p.x - 4, p.y - 6, p.w + 8, p.h + 8);
+      ctx.restore();
+      ctx.setTransform(S, 0, 0, S, 0, 0);
+    }
   }
 
   // Through the blown bay door: the night, the crater rim, snow being sucked past.
@@ -1916,6 +2234,7 @@ export class Game {
   }
 
   renderPost(ctx) {
+    this.renderShiftFx(ctx);
     // Vignette
     const v = ctx.createRadialGradient(VIEW_W / 2, VIEW_H / 2, VIEW_H * 0.45, VIEW_W / 2, VIEW_H / 2, VIEW_W * 0.72);
     v.addColorStop(0, 'rgba(0,0,0,0)');
@@ -1968,10 +2287,10 @@ function inkColor(e) {
 }
 
 // Lightning brightens the ambient light for a heartbeat.
-function mixAmbient(rgb, k) {
+function mixAmbient(rgb, k, red = false) {
   const m = rgb.match(/\d+/g).map(Number);
   const f = (c, t) => Math.round(c + (t - c) * Math.min(1, k * 0.8));
-  return `rgb(${f(m[0], 200)},${f(m[1], 215)},${f(m[2], 240)})`;
+  return red ? `rgb(${f(m[0], 230)},${f(m[1], 70)},${f(m[2], 70)})` : `rgb(${f(m[0], 200)},${f(m[1], 215)},${f(m[2], 240)})`;
 }
 
 // v1 saves (Chapter I only) → v2 (per-chapter stage state).

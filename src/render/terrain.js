@@ -76,6 +76,8 @@ export class TerrainRenderer {
             else if (t === 'v') this.iceSpikes(g, tx, ty);
             else if (t === 'a') this.acid(g, tx, ty);
             else if (t === 'R') this.resin(g, tx, ty);
+            else if (t === 'T') this.thorns(g, tx, ty);
+            else if (t === 'V') this.vineWall(g, tx, ty);
           }
         }
       }
@@ -166,6 +168,7 @@ export class TerrainRenderer {
       }
     }
     if (this.pal.glass) return this.glassDetail(g, tx, ty, { up, lf, rt, dn, h });
+    if (this.pal.vines) this.vineDetail(g, tx, ty, { up, dn, h });
     if (this.pal.bone) this.boneDetail(g, tx, ty, h);
     // embedded stones
     for (let i = 0; i < (this.pal.ribs ? 0 : 2); i++) {
@@ -925,5 +928,100 @@ export class TerrainRenderer {
     g.fillStyle = '#5a646e';
     g.fillRect(x + 6, y + 6, 2, 2);
     g.fillRect(x + TILE - 8, y + TILE - 8, 2, 2);
+  }
+
+  // The Upside Down: dark tendrils crawling over the ground and hanging from it.
+  vineDetail(g, tx, ty, { up, dn, h }) {
+    const x = tx * TILE;
+    const y = ty * TILE;
+    g.strokeStyle = '#0a0f14';
+    g.lineCap = 'round';
+    if (h(500) > 0.4) {
+      g.lineWidth = 2 + h(501) * 3;
+      g.beginPath();
+      g.moveTo(x, y + h(502) * TILE);
+      g.bezierCurveTo(x + 10, y + h(503) * TILE, x + 22, y + h(504) * TILE, x + TILE, y + h(505) * TILE);
+      g.stroke();
+    }
+    if (!up) {
+      // a mat of tendrils along the top, with little upturned shoots
+      g.lineWidth = 3;
+      g.beginPath();
+      g.moveTo(x - 2, y + 2);
+      g.quadraticCurveTo(x + 16, y - 2 - h(510) * 3, x + TILE + 2, y + 2);
+      g.stroke();
+      g.lineWidth = 1.4;
+      for (let i = 0; i < 2; i++) {
+        if (h(520 + i) < 0.5) continue;
+        const sx = x + h(530 + i) * TILE;
+        g.beginPath();
+        g.moveTo(sx, y + 1);
+        g.quadraticCurveTo(sx + 4, y - 6, sx + (h(540 + i) - 0.5) * 10, y - 9 - h(550 + i) * 6);
+        g.stroke();
+      }
+    }
+    if (!dn) {
+      // tendrils dangling into the dark
+      g.lineWidth = 1.8;
+      for (let i = 0; i < 3; i++) {
+        if (h(560 + i) < 0.45) continue;
+        const sx = x + 4 + h(570 + i) * 24;
+        const len = 10 + h(580 + i) * 30;
+        g.beginPath();
+        g.moveTo(sx, y + TILE - 2);
+        g.bezierCurveTo(sx + 4, y + TILE + len * 0.3, sx - 4, y + TILE + len * 0.7, sx + (h(590 + i) - 0.5) * 8, y + TILE + len);
+        g.stroke();
+      }
+    }
+  }
+
+  // Brambles: a tangle of black thorns.
+  thorns(g, tx, ty) {
+    const x = tx * TILE;
+    const y = ty * TILE;
+    const h = (k) => hash2(tx, ty, k);
+    g.strokeStyle = this.pal.vines ? '#0a0e13' : '#1a0e10';
+    g.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      g.lineWidth = 2 + h(i) * 2;
+      g.beginPath();
+      g.moveTo(x + h(i + 10) * TILE, y + TILE);
+      g.quadraticCurveTo(x + h(i + 20) * TILE, y + 10, x + h(i + 30) * TILE, y + 6 + h(i + 40) * 8);
+      g.stroke();
+    }
+    g.fillStyle = this.pal.vines ? '#1c2430' : '#2a1416';
+    for (let i = 0; i < 7; i++) {
+      const sx = x + h(i + 50) * TILE;
+      const sy = y + 8 + h(i + 60) * 20;
+      g.beginPath();
+      g.moveTo(sx, sy);
+      g.lineTo(sx + 3, sy - 7);
+      g.lineTo(sx + 5, sy);
+      g.fill();
+    }
+  }
+
+  // A wall of vines in the Upside Down: thick, black, glistening.
+  vineWall(g, tx, ty) {
+    const x = tx * TILE;
+    const y = ty * TILE;
+    const h = (k) => hash2(tx, ty, k);
+    g.fillStyle = '#06090d';
+    g.fillRect(x, y, TILE, TILE);
+    g.strokeStyle = '#121a22';
+    g.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      g.lineWidth = 4 + h(i) * 4;
+      g.beginPath();
+      g.moveTo(x + h(i + 5) * TILE, y);
+      g.bezierCurveTo(x + h(i + 9) * TILE, y + 10, x + h(i + 13) * TILE, y + 22, x + h(i + 17) * TILE, y + TILE);
+      g.stroke();
+    }
+    g.strokeStyle = 'rgba(150,180,220,0.18)';
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(x + h(30) * TILE, y + 2);
+    g.quadraticCurveTo(x + h(31) * TILE, y + 16, x + h(32) * TILE, y + TILE - 2);
+    g.stroke();
   }
 }

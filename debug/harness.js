@@ -253,6 +253,193 @@ export function installHarness(game) {
       H.secs(4.2);
       p.hearts = p.maxHearts;
     },
+    // Start the Chapter IV duel with the Master from the courtyard gate.
+    masterFight() {
+      H.chapter(4);
+      const p = game.player;
+      p.abilities.mirror = true;
+      game.debug.god = false;
+      game.zonesSeen = new Set(game.level.zones.map((z) => z.title));
+      if (game.level.layer !== 'real') game.tryShift(true);
+      H.warp(549, 45);
+      H.hold('right');
+      H.secs(0.6);
+      H.releaseAll();
+      H.secs(3.6);
+      p.hearts = p.maxHearts;
+    },
+    // Bot that knows the Master's tells, reacting `react` seconds late.
+    fightMaster(maxT = 120, react = 0.3) {
+      const p = game.player;
+      const b = game.boss;
+      const A = b.arena;
+      const hits = {};
+      let lastHearts = p.hearts;
+      let t = 0;
+      let jumpHold = 0;
+      let seen = {};
+      const moveTo = (x, tol = 20) => {
+        H.release('left');
+        H.release('right');
+        const dx = Math.max(A.x0 + 30, Math.min(A.x1 - 30, x)) - p.cx;
+        if (Math.abs(dx) > tol) H.hold(dx > 0 ? 'right' : 'left');
+      };
+      const jump = () => {
+        if (p.grounded) {
+          H.hold('jump');
+          jumpHold = 20;
+        }
+      };
+      while (t < maxT && b.alive && p.state !== 'dead' && game.bossActive) {
+        const s = b.state;
+        if (!seen[s + b.step]) seen = { [s + b.step]: t };
+        const since = t - seen[s + b.step];
+        const ready = since >= react;
+        const dx = b.cx - p.cx;
+        if (jumpHold > 0) jumpHold--;
+        else H.release('jump');
+        if (s === 'dashTell' && ready && b.t < 0.14) jump();
+        else if (s === 'dash') jump();
+        else if (s === 'kunaiTell' && ready) {
+          // step out of the line of fire, then come back in
+          moveTo(p.cx - Math.sign(dx) * 200, 10);
+          if (b.t < 0.08) jump();
+        } else if (s === 'ripple' && ready) moveTo(p.cx + (p.cx > b.rippleX ? 160 : -160), 10);
+        else if (s === 'ambush') jump();
+        else if (s === 'diveHang' || (s === 'diveRise' && ready)) moveTo((b.diveX ?? p.cx) + (p.cx > (b.diveX ?? p.cx) ? 150 : -150), 10);
+        else if (s === 'dive' && b.wave > 0) jump();
+        else if (s === 'recover' && ready) {
+          moveTo(b.cx - Math.sign(dx || 1) * 40, 22);
+          if (Math.abs(dx) < 70) {
+            H.tap('attack');
+            H.step(10);
+          }
+        } else moveTo(p.cx);
+        H.step(3);
+        t += 3 / 120;
+        if (p.hearts < lastHearts) {
+          const k = game.projectiles.some((pr) => Math.abs(pr.x - p.cx) < 60 && Math.abs(pr.y - p.cy) < 60) ? 'kunai' : b.wave > 0 ? 'wave' : s;
+          hits[k] = (hits[k] || 0) + (lastHearts - p.hearts);
+        }
+        lastHearts = p.hearts;
+      }
+      H.releaseAll();
+      return { t: +t.toFixed(1), state: b.state, hp: b.hp, phase: b.phase, hearts: p.hearts, pstate: p.state, hits };
+    },
+    // Start the Chapter IV finale: the Master already beaten, at the storm's edge.
+    flayerFight() {
+      H.chapter(4);
+      const p = game.player;
+      p.abilities.mirror = true;
+      game.debug.god = false;
+      game.zonesSeen = new Set(game.level.zones.map((z) => z.title));
+      game.stage.bossesDone = ['master'];
+      game.openGates4('master');
+      game.spawnBoss();
+      if (game.level.layer !== 'real') game.tryShift(true);
+      for (let k = 0; k < 3 && !game.bossActive; k++) {
+        H.warp(632, 25);
+        H.hold('right');
+        H.secs(0.6);
+        H.releaseAll();
+      }
+      H.secs(4.4);
+      p.hearts = p.maxHearts;
+      game.udT = 0;
+    },
+    // Bot for the Mind Flayer: lives in the Upside Down, steps out when it must.
+    fightFlayer(maxT = 240, react = 0.3) {
+      const p = game.player;
+      const b = game.boss;
+      const A = b.arena;
+      const hits = {};
+      let lastHearts = p.hearts;
+      let t = 0;
+      let jumpHold = 0;
+      let seen = {};
+      let realT = 0;
+      const moveTo = (x, tol = 20) => {
+        H.release('left');
+        H.release('right');
+        const dx = Math.max(A.x0 + 30, Math.min(A.x1 - 30, x)) - p.cx;
+        if (Math.abs(dx) > tol) H.hold(dx > 0 ? 'right' : 'left');
+      };
+      const jump = (n = 20) => {
+        if (p.grounded) {
+          H.hold('jump');
+          jumpHold = n;
+        }
+      };
+      const shiftTo = (to) => {
+        if (game.level.layer !== to && game.shiftCool <= 0 && p.state === 'normal') {
+          game.tryShift();
+          if (to === 'real') realT = 0;
+        }
+      };
+      while (t < maxT && b.alive && p.state !== 'dead' && game.bossActive) {
+        const s = b.state;
+        const key = s + b.step;
+        if (!seen[key]) seen = { [key]: t };
+        const ready = t - seen[key] >= react;
+        const inReal = game.level.layer === 'real';
+        if (inReal) realT += 3 / 120;
+        if (jumpHold > 0) jumpHold--;
+        else H.release('jump');
+        const tip = b.legTip();
+        // flee the leg toward whichever side has room
+        const away = (x) => {
+          let d = p.cx > x ? 1 : -1;
+          if ((d > 0 && x + 140 > A.x1 - 40) || (d < 0 && x - 140 < A.x0 + 40)) d = -d;
+          return x + d * 140;
+        };
+        if ((s === 'slamTell' && ready) || s === 'slam') {
+          if (b.leg) {
+            if (!b.leg.flee) b.leg.flee = away(b.leg.x);
+            moveTo(b.leg.flee, 10);
+          }
+        }
+        else if (s === 'planted' && b.leg) {
+          shiftTo('ud');
+          moveTo(b.leg.x + (p.cx > b.leg.x ? 44 : -44), 14);
+          if (Math.abs(p.cx - b.leg.x) < 80 && b.leg.impact <= 0) {
+            H.tap('attack');
+            H.step(8);
+          }
+        } else if (s === 'sweepTell' || s === 'sweep') {
+          moveTo(p.cx);
+          if (s === 'sweep' && tip && Math.abs(tip[0] - p.cx) < 130 && Math.sign(p.cx - tip[0]) === b.leg.dir) jump(30);
+        } else if ((s === 'lightning' || s === 'swarmTell' || s === 'swarm' || s === 'gazeTell' || s === 'gaze') && ready) {
+          // none of it exists in the real world
+          shiftTo('real');
+          if (s === 'lightning') moveTo(p.cx + 120, 10);
+          else moveTo(p.cx);
+        } else if (s === 'descend' || s === 'core') {
+          shiftTo('ud');
+          moveTo(b.bx, 16);
+          if (s === 'core' && Math.abs(p.cx - b.bx) < 50) {
+            if (p.grounded) jump(30);
+            else if (p.vy > -200) {
+              H.tap('attack');
+              H.step(6);
+            }
+          }
+        } else {
+          // between attacks: get back to the Upside Down, rest in the real one if it's draining you
+          if (game.udT > game.udLimit - 4 && !inReal) shiftTo('real');
+          else if (inReal && (realT > 1.5 || game.udT < 2)) shiftTo('ud');
+          moveTo(p.cx);
+        }
+        H.step(3);
+        t += 3 / 120;
+        if (p.hearts < lastHearts) {
+          const k = b.leg?.impact > 0 ? 'impact' : b.swarm?.live ? 'swarm' : b.gaze?.live ? 'gaze' : b.marks.some((m) => m.fired && m.hit > 0) ? 'bolt' : game.udT === 0 || game.udT >= game.udLimit * 0.5 - 0.1 ? s + '/drain?' : s;
+          hits[k] = (hits[k] || 0) + (lastHearts - p.hearts);
+        }
+        lastHearts = p.hearts;
+      }
+      H.releaseAll();
+      return { t: +t.toFixed(1), state: b.state, hp: b.hp, phase: b.phase, hearts: p.hearts, pstate: p.state, hits };
+    },
     pos() {
       const p = game.player;
       return { x: +(p.cx / 32).toFixed(2), y: +(p.feetY / 32).toFixed(2), grounded: p.grounded, hearts: p.hearts };

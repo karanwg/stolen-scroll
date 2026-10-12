@@ -10,6 +10,7 @@ const BINDINGS = {
   attack: ['KeyX', 'KeyJ'],
   dash: ['KeyC', 'KeyK', 'ShiftLeft', 'ShiftRight'],
   hook: ['KeyS'],
+  shift: ['KeyA'],
   confirm: ['Enter', 'NumpadEnter'],
   pause: ['Escape', 'KeyP'],
   mute: ['KeyM'],

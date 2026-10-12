@@ -13,7 +13,10 @@ export class Weather {
     this.intensity = 1;
     this.gust = 0; // 0..1, set by the game from nearby wind zones (signed by gustDir)
     this.gustDir = 1;
-    this.drops = Array.from({ length: kind === 'snow' ? 220 : 170 }, () => (kind === 'snow' ? this.newFlake(true) : this.newDrop(true)));
+    this.red = kind === 'ash'; // the Upside Down's lightning is red
+    if (kind === 'petals') this.drops = Array.from({ length: 46 }, () => this.newPetal(true));
+    else if (kind === 'ash') this.drops = Array.from({ length: 150 }, () => this.newAsh(true));
+    else this.drops = Array.from({ length: kind === 'snow' ? 220 : 170 }, () => (kind === 'snow' ? this.newFlake(true) : this.newDrop(true)));
     this.onThunder = null;
   }
 
@@ -28,6 +31,17 @@ export class Weather {
       ph: rand(0, 6.28),
       depth,
     };
+  }
+
+  // Cherry blossom petals, tumbling down slowly.
+  newPetal(anywhere = false) {
+    return { x: rand(-60, VIEW_W + 60), y: anywhere ? rand(-20, VIEW_H) : rand(-40, -5), v: rand(22, 48), r: rand(2.2, 3.6), ph: rand(0, 6.28), spin: rand(1, 3), a: rand(0.5, 0.85) };
+  }
+
+  // The Upside Down's ash (or spores): drifting *up*.
+  newAsh(anywhere = false) {
+    const depth = Math.random();
+    return { x: rand(-40, VIEW_W + 40), y: anywhere ? rand(0, VIEW_H + 20) : VIEW_H + rand(5, 40), v: 12 + depth * 30, r: 0.6 + depth * 1.8, a: 0.25 + depth * 0.45, ph: rand(0, 6.28), depth };
   }
 
   newDrop(anywhere = false) {
@@ -58,6 +72,36 @@ export class Weather {
 
   update(dt) {
     if (!this.kind) return;
+    if (this.kind === 'petals') {
+      for (const f of this.drops) {
+        f.ph += dt * f.spin;
+        f.y += f.v * dt;
+        f.x += (18 + Math.sin(f.ph) * 26) * dt;
+        if (f.y > VIEW_H + 10 || f.x > VIEW_W + 70) Object.assign(f, this.newPetal());
+      }
+      return;
+    }
+    if (this.kind === 'ash') {
+      for (const f of this.drops) {
+        f.ph += dt * (0.6 + f.depth);
+        f.y -= f.v * dt;
+        f.x += Math.sin(f.ph) * 10 * dt;
+        if (f.y < -10) Object.assign(f, this.newAsh());
+      }
+      // red lightning in the clouds
+      this.flash = Math.max(0, this.flash - dt * 2.2);
+      if (this.flash > 0 && this.flash < 0.5 && this.flicker === undefined) {
+        this.flicker = true;
+        this.flash = 0.7;
+      }
+      if (this.flash === 0) this.flicker = undefined;
+      this.nextBolt -= dt * this.intensity;
+      if (this.nextBolt <= 0) {
+        this.nextBolt = rand(5, 11);
+        this.strike(undefined, 0.8);
+      }
+      return;
+    }
     if (this.kind === 'snow') {
       const drift = 20 + this.gust * this.gustDir * 600;
       for (const f of this.drops) {
@@ -96,6 +140,35 @@ export class Weather {
 
   draw(ctx) {
     if (!this.kind) return;
+    if (this.kind === 'petals') {
+      ctx.save();
+      for (const f of this.drops) {
+        ctx.save();
+        ctx.translate(f.x, f.y);
+        ctx.rotate(f.ph);
+        ctx.scale(1, 0.5 + 0.5 * Math.abs(Math.sin(f.ph * 1.3)));
+        ctx.fillStyle = `rgba(255,190,210,${f.a})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, f.r, f.r * 0.62, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+      return;
+    }
+    if (this.kind === 'ash') {
+      ctx.save();
+      for (const f of this.drops) {
+        ctx.fillStyle = `rgba(200,210,220,${f.a})`;
+        ctx.fillRect(f.x, f.y, f.r, f.r);
+      }
+      if (this.flash > 0) {
+        ctx.fillStyle = `rgba(255,60,50,${this.flash * 0.12})`;
+        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+      }
+      ctx.restore();
+      return;
+    }
     if (this.kind === 'snow') {
       ctx.save();
       const streak = this.gust * this.gustDir * 26;

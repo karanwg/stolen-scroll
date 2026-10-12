@@ -19,6 +19,12 @@ Playable now:
   hypersleep, a power failure), the alien derelict fused into
   it (the Pilot, the egg chamber), and the nest in the cargo bay: the
   Xenomorph. The **Kage-ashi** (shadow dash and sprint), the **Kaginawa** (grappling hook) and the **Shuko Claws** (wall jump).
+- **Chapter IV — The Upside Down** (the finale): home to Kagari, rebuilt — and
+  its villagers sleepwalking to the shrine. The **Yata no Kagami** mirror lets
+  you shift between the real world and the Upside Down beneath it (same map,
+  different ground, enemies and hazards; it drains you if you stay). Then the
+  Hollow Wood, the Drowned Terraces, a duel with the Binoshi Master, the
+  Inverted Pagoda (the world turns over), the Mind Flayer, and dawn.
 
 Finishing a chapter rolls straight into the next; **Chapter Select** on the title
 screen replays any chapter you've reached (abilities carry over).
@@ -47,6 +53,7 @@ Open http://localhost:5180.
 | Float (Kite Cloth) | press and hold Jump in midair; hold Jump inside a geyser to ride it |
 | Water walk (Mizugumo) | just run onto calm water — keep moving or you sink; whitecaps can't be walked on |
 | Wall jump (Shuko Claws) | hold toward a wall, then Jump — ice walls are slippery |
+| Shift worlds (Yata no Kagami) | A — blocked (red outline) if something solid is there on the other side |
 | Grapple (Kaginawa) | hold S near a ring; ← → pump the swing, ↑ ↓ reel, Jump to launch off, let go of S to drop |
 | Pause · Mute | Esc · M |
 
@@ -60,6 +67,8 @@ Open http://localhost:5180.
 - In the console, `H` (from `debug/harness.js`) drives the game deterministically:
   `H.fresh()`, `H.chapter(3)`, `H.warp(x, y)`, `H.hold('right')`, `H.secs(1)`,
   `H.bounceOn(jelly)`, `H.swingTo(...)`, `H.snap('name')` → `.snaps/name.png`.
+  Boss pattern bots for balance: `H.xenoFight(); H.fightXeno()`,
+  `H.masterFight(); H.fightMaster()`, `H.flayerFight(); H.fightFlayer()`.
 - **`/debug/xeno.html`** draws the Xenomorph's poses (`?only=roar&s=3`).
 
 ## Layout
