@@ -254,6 +254,7 @@ export class Balrog {
         }
         if (this.t <= 0) {
           this.dead = true;
+          this.state = 'dead';
           game.particles.burst(this.cx, this.y + 70, 80, { color: 'rgba(70,60,65,0.9)', kind: 'smoke', size: 10, grow: 30, speed: 300, life: 1.6, drag: 2 });
           game.particles.burst(this.cx, this.y + 70, 60, { color: 'rgb(255,160,70)', additive: true, speed: 420, life: 1.2, size: 3, grav: 200 });
         }

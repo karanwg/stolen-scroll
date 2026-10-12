@@ -4,7 +4,8 @@ import { isWater } from '../world/level.js';
 
 // Animated water drawn over the world (so anything below the surface is
 // submerged). Calm water ('~') is glassy with moon glints; rough water ('%')
-// churns with whitecaps, so it reads as "not walkable" at a glance.
+// churns white — peaked waves, a band of foam, spray — so it reads as
+// "not walkable" at a glance.
 
 export class WaterRenderer {
   constructor(level) {
@@ -34,8 +35,93 @@ export class WaterRenderer {
     const tx = Math.floor(x / TILE);
     const r = this.rough(tx, ty) ? 1 : 0;
     const calm = Math.sin(x * 0.035 + t * 2.0) * 1.6 + Math.sin(x * 0.013 - t * 1.3) * 2.2;
-    const chop = Math.sin(x * 0.09 - t * 6.5) * 3 + Math.sin(x * 0.051 + t * 4.1) * 4;
+    // rough water: sharp crests that peak upward, churning fast
+    const chop = -Math.abs(Math.sin(x * 0.07 - t * 5.5)) * 9 - Math.abs(Math.sin(x * 0.043 + t * 3.7)) * 5 + Math.sin(x * 0.17 + t * 9) * 1.5 + 6;
     return y0 + calm + r * chop;
+  }
+
+  // Contiguous rough stretches [x0, x1] (px) of a run, clipped to [xa, xb].
+  roughSpans(run, xa, xb) {
+    const spans = [];
+    let start = null;
+    const tx0 = Math.floor(xa / TILE);
+    const tx1 = Math.floor(xb / TILE);
+    for (let tx = tx0; tx <= tx1 + 1; tx++) {
+      const r = tx <= tx1 && this.rough(tx, run.ty);
+      if (r && start === null) start = tx;
+      if (!r && start !== null) {
+        spans.push([Math.max(xa, start * TILE), Math.min(xb, tx * TILE)]);
+        start = null;
+      }
+    }
+    return spans;
+  }
+
+  // White water: a thick churning band of foam, streaks below, breaking
+  // crests throwing spray. Drawn so it can't be mistaken for calm water.
+  drawRough(ctx, run, a, b, y0, t) {
+    // murkier, churned-up body
+    const murk = ctx.createLinearGradient(0, y0, 0, y0 + 90);
+    murk.addColorStop(0, 'rgba(150,175,185,0.2)');
+    murk.addColorStop(1, 'rgba(150,175,185,0)');
+    ctx.fillStyle = murk;
+    ctx.fillRect(a, y0 + 4, b - a, 86);
+    // foam band along the surface, with a ragged underside
+    ctx.fillStyle = 'rgba(225,238,248,0.62)';
+    ctx.beginPath();
+    for (let x = a; x <= b; x += 6) ctx.lineTo(x, this.waveY(x, y0, run.ty, t) - 1);
+    for (let x = b; x >= a; x -= 5) ctx.lineTo(x, this.waveY(x, y0, run.ty, t) + 6 + Math.abs(Math.sin(x * 0.31 + t * 7)) * 6);
+    ctx.closePath();
+    ctx.fill();
+    // foam streaks dragged under by the current
+    ctx.strokeStyle = 'rgba(210,230,245,0.3)';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    for (let x = Math.floor(a / 20) * 20; x < b; x += 20) {
+      for (let k = 0; k < 2; k++) {
+        const ph = (t * 1.8 + hash2(x, k) * 5) % 1;
+        const sx = x + ph * 26;
+        const sy = y0 + 16 + k * 16 + hash2(x, k + 7) * 10;
+        if (sx < a || sx + 14 > b) continue;
+        ctx.moveTo(sx, sy);
+        ctx.quadraticCurveTo(sx + 7, sy - 4, sx + 14, sy);
+      }
+    }
+    ctx.stroke();
+    // breaking crests: a bright curl, and spray thrown off it
+    for (let x = Math.floor(a / TILE) * TILE; x < b; x += TILE) {
+      const tx = x / TILE;
+      for (let k = 0; k < 4; k++) {
+        const ph = (t * 1.5 + hash2(tx, k) * 7) % 1;
+        const dx = x + hash2(tx, k + 3) * 32 + ph * 22;
+        if (dx < a || dx > b) continue;
+        const base = this.waveY(dx, y0, run.ty, t);
+        const dy = base - Math.sin(ph * Math.PI) * (14 + hash2(tx, k + 5) * 14);
+        ctx.fillStyle = `rgba(235,245,255,${0.85 * (1 - ph)})`;
+        ctx.fillRect(dx, dy, 2.2, 2.2);
+      }
+    }
+  }
+
+  // Foam that shows through the darkness (drawn after the lighting).
+  drawGlow(ctx, view, t) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const run of this.runs) {
+      const rx0 = run.x0 * TILE;
+      const rx1 = (run.x1 + 1) * TILE;
+      if (rx1 < view.x0 - 20 || rx0 > view.x1 + 20) continue;
+      const y0 = run.ty * TILE + 2;
+      if (y0 > view.y1 + 10 || y0 < view.y0 - 40) continue;
+      for (const [a, b] of this.roughSpans(run, Math.max(rx0, view.x0 - 16), Math.min(rx1, view.x1 + 16))) {
+        ctx.strokeStyle = 'rgba(150,180,200,0.35)';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        for (let x = a; x <= b; x += 6) ctx.lineTo(x, this.waveY(x, y0, run.ty, t));
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   draw(ctx, view, t) {
@@ -85,6 +171,8 @@ export class WaterRenderer {
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
+
+      for (const [a, b] of this.roughSpans(run, xa, xb)) this.drawRough(ctx, run, a, b, y0, t);
 
       // per-tile surface details
       const tx0 = Math.floor(xa / TILE);

@@ -37,7 +37,8 @@ export class FloatPlatform {
     this.phase += dt;
     this.load = occupied ? this.load + dt : 0;
     let bob = Math.sin(this.phase * 1.7) * 3 + Math.sin(this.phase * 0.9) * 1.5;
-    this.dip = approach(this.dip, occupied ? 6 : 0, 40 * dt);
+    // a rotten plank sits flush with the pier: it shakes, it doesn't sag
+    this.dip = approach(this.dip, occupied && this.mode !== 'crumble' ? 6 : 0, 40 * dt);
     this.shake = 0;
     switch (this.mode) {
       case 'sink':

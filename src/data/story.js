@@ -10,7 +10,7 @@ export const OPENING = [
 export const ELDER = [
   { who: 'Elder Haru', text: '…You came back. Good. Good. Kneel a moment — I cannot stand.' },
   { who: 'Elder Haru', text: 'The Binoshi took the Scroll. They used it to call up a demon of fire… a Balrog, from beyond the western sea.' },
-  { who: 'Elder Haru', text: 'It is what burned us. But it is only the first. They mean to wake something far older — the Mind Flayer.' },
+  { who: 'Elder Haru', text: 'It is what burned us. But it is only the first. They mean to wake something far older.' },
   { who: 'Elder Haru', text: 'Follow their tracks. Their feet leave a violet stain — the Scroll\'s ink is on their souls now.' },
   { who: 'Elder Haru', text: 'Rest at the spirit lanterns when you can. They will remember you if you fall. Go.' },
 ];

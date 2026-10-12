@@ -635,8 +635,13 @@ export class Game {
     const riding = this.level.platformUnder(p.x, p.y, p.w, p.h);
     for (const pl of this.platforms) pl.update(dt, this, pl === riding && p.grounded);
     if (riding && p.grounded && riding.solid) {
-      p.x += riding.dx;
-      p.y = riding.y - p.h;
+      // ride it — but never get dragged into the ground beside it
+      const nx = p.x + riding.dx;
+      const ny = riding.y - p.h;
+      if (!this.level.boxHit(nx, ny, p.w, p.h)) {
+        p.x = nx;
+        p.y = ny;
+      }
     }
     for (const g of this.geysers) g.update(dt, this);
     this.updateWinds(dt);
@@ -664,7 +669,8 @@ export class Game {
     for (const e of this.enemies) if (this.onLayer(e)) e.update(dt, this);
     this.updateUpsideDown(dt);
     this.enemies = this.enemies.filter((e) => !e.dead);
-    if (this.boss && (this.bossActive || ['dying', 'falling'].includes(this.boss.state))) this.boss.update(dt, this);
+    // (a dead boss stays in 'dying' — don't keep running its death throes)
+    if (this.boss && !this.boss.dead && (this.bossActive || ['dying', 'falling'].includes(this.boss.state))) this.boss.update(dt, this);
     // Phase three: keep the door (and what's going out of it) in frame.
     const xb = this.level.chapter === 3 && this.bossActive && this.boss && !this.boss.dead && (this.arenaWind || ['falling', 'breakout'].includes(this.boss.state)) ? this.boss : null;
     if (xb) {
@@ -2041,6 +2047,7 @@ export class Game {
     // Glowing things that should punch through the darkness
     setT(ctx, S, 0, 0, S, -left * S, -top * S);
     this.decos.drawLamps(ctx, view, t, state);
+    (ud ? this.waterUD : this.water).drawGlow(ctx, view, t);
     if (this.boss && (this.bossActive || ['falling', 'dying'].includes(this.boss.state)) && this.boss.drawOver) this.boss.drawOver(ctx, this);
     for (const s of this.slashes) s.draw(ctx);
     this.particles.draw(ctx, view, 'over');
