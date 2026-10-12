@@ -10,7 +10,7 @@ Playable now:
   jump and dash, and the Balrog.
 - **Chapter II — The Drowned Coast**: a storm-lashed coast (about 1.6× the length
   of Chapter I) — stilt village, wreck cove, lighthouse, open strait, floating
-  shrine. Kappa, jellyfish, sea tentacles, storm crows. The **Mizugumo**
+  shrine. Kappa, jellyfish, sea tentacles, storm crows. The **Water-Spiders**
   (water-walking) and **Kite Cloth** (float), and the Kraken.
 - **Chapter III — The Fallen Star**: about twice the length of Chapter II. Snow
   first — the frozen pass, a Binoshi camp ambush, a cliff temple of bells, an
@@ -18,9 +18,9 @@ Playable now:
   crater of black glass, the crashed salvage ship MSV Tethys (strip lights,
   hypersleep, a power failure), the alien derelict fused into
   it (the Pilot, the egg chamber), and the nest in the cargo bay: the
-  Xenomorph. The **Kage-ashi** (shadow dash and sprint), the **Kaginawa** (grappling hook) and the **Shuko Claws** (wall jump).
+  Xenomorph. The **Shadow Dash** (untouchable dash and sprint), the **Grappling Hook** and the **Clinging Claws** (wall jump).
 - **Chapter IV — The Upside Down** (the finale): home to Kagari, rebuilt — and
-  its villagers sleepwalking to the shrine. The **Yata no Kagami** mirror lets
+  its villagers sleepwalking to the shrine. The **Otherworld Mirror** lets
   you shift between the real world and the Upside Down beneath it (same map,
   different ground, enemies and hazards; it drains you if you stay). Then the
   Hollow Wood, the Drowned Terraces, a duel with the Binoshi Master, the
@@ -46,15 +46,15 @@ Open http://localhost:5180.
 | Jump (hold for height) | Z or Space |
 | Slash (hold ↑ / ↓ to aim, ↓ in the air to pogo) | X or J |
 | Dash | C, K or Shift |
-| Shadow dash (Kage-ashi) | every 3 s a dash makes you untouchable for its length |
-| Sprint (Kage-ashi) | keep holding Dash after the burst |
+| Shadow dash (Shadow Dash) | every 3 s a dash makes you untouchable for its length |
+| Sprint (Shadow Dash) | keep holding Dash after the burst |
 | Interact / meditate at lanterns | ↑ |
 | Drop through a beam | ↓ + Jump |
 | Float (Kite Cloth) | press and hold Jump in midair; hold Jump inside a geyser to ride it |
-| Water walk (Mizugumo) | just run onto calm water — keep moving or you sink; whitecaps can't be walked on |
-| Wall jump (Shuko Claws) | hold toward a wall, then Jump — ice walls are slippery |
-| Shift worlds (Yata no Kagami) | A — blocked (red outline) if something solid is there on the other side |
-| Grapple (Kaginawa) | hold S near a ring; ← → pump the swing, ↑ ↓ reel, Jump to launch off, let go of S to drop |
+| Water walk (Water-Spiders) | just run onto calm water — keep moving or you sink; whitecaps can't be walked on |
+| Wall jump (Clinging Claws) | hold toward a wall, then Jump — ice walls are slippery |
+| Shift worlds (Otherworld Mirror) | A — blocked (red outline) if something solid is there on the other side |
+| Grapple (Grappling Hook) | hold S near a ring; ← → pump the swing, ↑ ↓ reel, Jump to launch off, let go of S to drop |
 | Pause · Mute | Esc · M |
 
 ## Dev tools

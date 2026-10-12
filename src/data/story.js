@@ -60,7 +60,7 @@ export const NOTES = {
     { who: 'Violet footprints', text: 'Still glowing. They lead east, through the burning street. Whoever made them was in no hurry.' },
   ],
   sensei: [
-    { who: "Sensei's note", text: 'If you are reading this, the dojo has fallen. Take the Tengu Feather from the altar.' },
+    { who: "Sensei's note", text: 'If you are reading this, the dojo has fallen. Take the Hallowed Feather from the altar.' },
     { who: "Sensei's note", text: 'The pagoda can be climbed by one who can leap twice. From its roof, the Binoshi\'s path is plain to see.' },
   ],
 };
@@ -92,7 +92,7 @@ export const FERRYMAN = [
   { who: 'Old Ferryman', text: 'A ninja, out of the smoke. From Kagari? Then you saw the fire. I am sorry, child.' },
   { who: 'Old Ferryman', text: 'They came through two nights ago — masks, and that purple ink on their heels. Took every boat in Ama and rowed for the Floating Shrine.' },
   { who: 'Old Ferryman', text: 'Then the sea stood up. Arms, child. Arms as long as the harbour. It pulled the boats under, and our fishermen with them.' },
-  { who: 'Old Ferryman', text: 'No boats left to lend you. But a shinobi never needed a boat, eh? Here — my grandfather\'s mizugumo. Water-spider shoes.' },
+  { who: 'Old Ferryman', text: 'No boats left to lend you. But a shinobi never needed a boat, eh? Here — my grandfather\'s Water-Spiders. Shoes for walking on water.' },
   { who: 'Old Ferryman', text: 'Run and the sea holds you. Stand still and it remembers you\'re heavy. And where the water turns white — don\'t.' },
 ];
 export const FERRYMAN_AFTER = [{ who: 'Old Ferryman', text: 'Keep your feet moving. The lighthouse keeper kept something for crossing the rough water. Climb the light.' }];
@@ -204,7 +204,7 @@ export const V_ELDER = [
   { who: 'Elder Haru', text: 'There you are. I knew the footprints would bring you home — I only hoped you would arrive before they did.' },
   { who: 'Elder Haru', text: 'The Master read the last name here. At our own shrine. And then he simply… went somewhere else. Somewhere beneath.' },
   { who: 'Elder Haru', text: 'Our people walk toward the shrine in their sleep. Something under the world is calling them, the way the tide calls driftwood.' },
-  { who: 'Elder Haru', text: 'On the shrine\'s altar is the Yata no Kagami, the sacred mirror. It shows what is behind a thing. Hold it, and it will show you what is behind the world.' },
+  { who: 'Elder Haru', text: 'On the shrine\'s altar is the Otherworld Mirror. It shows what is behind a thing. Hold it, and it will show you what is behind the world.' },
   { who: 'Elder Haru', text: 'Bring back the Scroll. Bring back our people. And do not stay on the other side long. It does not let go easily.' },
 ];
 export const V_ELDER_AFTER = [{ who: 'Elder Haru', text: 'The shrine. The mirror. Go.' }];

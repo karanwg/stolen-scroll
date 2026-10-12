@@ -2,25 +2,25 @@
 
 export const ABILITY_INFO = {
   doubleJump: {
-    name: 'Tengu Feather',
+    name: 'Hallowed Feather',
     verb: 'Double Jump',
     how: 'Press JUMP again in midair.',
     color: '#9fd8ff',
   },
   dash: {
-    name: 'Wind-Step Tabi',
+    name: 'Wind-Step',
     verb: 'Dash',
     how: 'Press C to burst forward — on the ground or in the air.',
     color: '#8fffd8',
   },
   shadowStep: {
-    name: 'Kage-ashi',
-    verb: 'Shadow Dash · Sprint',
+    name: 'Shadow Dash',
+    verb: 'Untouchable Dash · Sprint',
     how: 'Every 3s a dash turns to shadow: untouchable. Hold C after it to sprint.',
     color: '#b89aff',
   },
   waterWalk: {
-    name: 'Mizugumo',
+    name: 'Water-Spiders',
     verb: 'Water Walk',
     how: 'Run across calm water — keep moving or you sink. Whitecaps are too rough.',
     color: '#8fd4ff',
@@ -32,20 +32,20 @@ export const ABILITY_INFO = {
     color: '#ff9fb0',
   },
   wallJump: {
-    name: 'Shuko Claws',
+    name: 'Clinging Claws',
     verb: 'Wall Jump',
     how: 'Hold toward a wall to cling, then JUMP away from it. Ice walls are slick.',
     color: '#ffd28f',
   },
   mirror: {
-    name: 'Yata no Kagami',
+    name: 'Otherworld Mirror',
     verb: 'World Shift',
     how: 'Press A to step through to the other side. You can\'t shift into solid ground.',
     color: '#ff8a8a',
   },
   kaginawa: {
-    name: 'Kaginawa',
-    verb: 'Grappling Hook',
+    name: 'Grappling Hook',
+    verb: 'Swing',
     how: 'Hold S to hook the marked ring and swing. ← → pump · ↑ ↓ reel · let go to fling · Z to leap off.',
     color: '#ffcf8a',
   },
@@ -131,7 +131,7 @@ export function drawAbilityIcon(ctx, ability, x, y, s, color = '#ffffff') {
       break;
     }
     case 'waterWalk': {
-      // mizugumo: a ring of floats around a sandal, ripples beneath
+      // water-spiders: a ring of floats around a sandal, ripples beneath
       ctx.beginPath();
       ctx.ellipse(0, -2, 12, 5, 0, 0, Math.PI * 2);
       ctx.stroke();
